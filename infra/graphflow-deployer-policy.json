@@ -7,6 +7,7 @@
       "Action": [
         "cloudformation:CreateChangeSet",
         "cloudformation:CreateStack",
+        "cloudformation:ContinueUpdateRollback",
         "cloudformation:DescribeChangeSet",
         "cloudformation:DescribeStackEvents",
         "cloudformation:DescribeStacks",
@@ -25,8 +26,7 @@
         "dynamodb:PutItem",
         "dynamodb:Query",
         "dynamodb:TagResource",
-        "dynamodb:UpdateTable",
-        "dynamodb:UpdateTimeToLive"
+        "dynamodb:UpdateTable"
       ],
       "Resource": "*"
     },

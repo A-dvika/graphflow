@@ -41,9 +41,6 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-      TimeToLiveSpecification:
-        AttributeName: expiresAt
-        Enabled: true
       Tags:
         - Key: Project
           Value: !Ref ProjectName

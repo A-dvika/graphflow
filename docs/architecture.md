@@ -34,7 +34,7 @@ GraphFlow separates stable graph definition data from high-volume run state.
 
 - Aurora PostgreSQL is the source of truth for workflow graph definitions.
 - DynamoDB stores write-heavy run state and node/event updates.
-- DynamoDB uses on-demand capacity, project-level GSI indexing, and TTL-ready records.
+- DynamoDB uses on-demand capacity, project-level GSI indexing, and retention-ready records.
 - EventBridge carries release events without coupling ingest APIs to workers.
 - Lambda workers can process node events independently as volume grows.
 

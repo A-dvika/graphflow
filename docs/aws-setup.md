@@ -32,7 +32,8 @@ first, then run:
 ```bash
 aws cloudformation continue-update-rollback \
   --region us-east-1 \
-  --stack-name graphflow-foundation
+  --stack-name graphflow-foundation \
+  --resources-to-skip RunsTable
 ```
 
 After the stack returns to a stable rollback or complete state, retry the GitLab pipeline.
@@ -88,7 +89,7 @@ The CLI foundation deploy creates this table:
 - Sort key: `sk` string
 - Capacity mode: on-demand
 - Global secondary index: `gsi1`
-- TTL attribute: `expiresAt`
+- Retention timestamp attribute: `expiresAt`
 
 Example items:
 

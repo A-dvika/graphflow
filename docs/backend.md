@@ -151,8 +151,8 @@ gsi1pk = TENANT#<tenantId>#PROJECT#<projectId>
 gsi1sk = RUN#<updatedAt>#<runId>
 ```
 
-The table is on-demand and TTL-ready. This means high-volume CI events can be written without
-capacity planning, and old run records can expire after the configured retention window.
+The table is on-demand and writes `expiresAt` retention timestamps. Managed DynamoDB TTL can be
+enabled later, but the hackathon stack keeps TTL out of CloudFormation to avoid extra IAM friction.
 
 ## Useful Commands
 
