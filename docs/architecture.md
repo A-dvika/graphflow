@@ -34,6 +34,7 @@ GraphFlow separates stable graph definition data from high-volume run state.
 
 - Aurora PostgreSQL is the source of truth for workflow graph definitions.
 - The hackathon backend also accepts workflow config registration into DynamoDB so projects can onboard through CI immediately.
+- Workflow reads try Aurora PostgreSQL first and fall back to DynamoDB/static demo data for resilience.
 - DynamoDB stores write-heavy run state and node/event updates.
 - DynamoDB uses on-demand capacity, project-level GSI indexing, and retention-ready records.
 - EventBridge carries release events without coupling ingest APIs to workers.

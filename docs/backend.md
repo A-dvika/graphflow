@@ -23,6 +23,8 @@ GRAPHFLOW_RUNS_TABLE=GraphFlowRuns
 GRAPHFLOW_EVENT_BUS=graphflow-events
 GRAPHFLOW_INGEST_TOKEN=<random shared secret for CI ingest>
 GRAPHFLOW_RUN_RETENTION_DAYS=30
+DATABASE_URL=<Aurora PostgreSQL connection string>
+DATABASE_POOL_MAX=3
 ```
 
 Do not commit these values.
@@ -34,6 +36,15 @@ Read the seeded run:
 ```text
 GET /api/runs/run_demo_001
 ```
+
+Read workflow graph:
+
+```text
+GET /api/workflows/release-template
+```
+
+This route tries Aurora PostgreSQL first when `DATABASE_URL` is configured. If Aurora is not
+configured or the workflow is missing, it falls back to DynamoDB/static demo data.
 
 List recent runs for a project:
 
@@ -165,6 +176,24 @@ Workflow config:
 ```text
 pk = TENANT#<tenantId>#PROJECT#<projectId>
 sk = WORKFLOW#<workflowId>
+```
+
+## Aurora PostgreSQL Graph Storage
+
+Aurora PostgreSQL stores the durable workflow graph:
+
+```text
+workflows
+workflow_nodes
+workflow_edges
+workflow_graph view
+```
+
+Apply the schema after creating the Aurora PostgreSQL database:
+
+```bash
+export DATABASE_URL='postgres://user:password@host:5432/graphflow?sslmode=require'
+bash scripts/apply-aurora-schema.sh
 ```
 
 Direct run lookup:

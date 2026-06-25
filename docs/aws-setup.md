@@ -67,6 +67,13 @@ Recommended hackathon setup:
 - Database name: `graphflow`
 - Initial schema: run `database/aurora-schema.sql`
 
+Apply schema from Git Bash after the database is reachable:
+
+```bash
+export DATABASE_URL='postgres://user:password@host:5432/graphflow?sslmode=require'
+bash scripts/apply-aurora-schema.sh
+```
+
 Tables:
 
 - `workflows`
@@ -172,6 +179,8 @@ GRAPHFLOW_RUNS_TABLE
 GRAPHFLOW_EVENT_BUS
 GRAPHFLOW_INGEST_TOKEN
 GRAPHFLOW_RUN_RETENTION_DAYS
+DATABASE_URL
+DATABASE_POOL_MAX
 ```
 
 Submission needs:

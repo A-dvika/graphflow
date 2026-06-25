@@ -36,6 +36,7 @@ See:
 - `docs/backend.md`
 - `docs/gitlab-cicd.md`
 - `database/aurora-schema.sql`
+- `scripts/apply-aurora-schema.sh`
 
 ## API Routes
 

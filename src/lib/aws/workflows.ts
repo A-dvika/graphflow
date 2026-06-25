@@ -6,6 +6,7 @@ import {
   type WorkflowConfigPayload,
 } from "@/lib/backend/model";
 import { findCriticalPath, releaseEdges, releaseNodes } from "@/lib/graphflow";
+import { getWorkflowFromAurora } from "@/lib/aws/aurora";
 import { getDocumentClient, hasAwsConfig } from "@/lib/aws/dynamodb";
 
 const tableName = process.env.GRAPHFLOW_RUNS_TABLE ?? "GraphFlowRuns";
@@ -86,6 +87,11 @@ export async function getWorkflowConfig(input: {
   workflowId?: string;
 }) {
   const identity = buildRunIdentity(input);
+  const auroraWorkflow = await getWorkflowFromAurora(identity.workflowId);
+
+  if (auroraWorkflow) {
+    return auroraWorkflow;
+  }
 
   if (!hasAwsConfig()) {
     return getFallbackWorkflow();
