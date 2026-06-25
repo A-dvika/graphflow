@@ -39,6 +39,8 @@ put_item "NODE#build" "success" "build" "Build completed."
 put_item "NODE#unit" "success" "unit" "Unit Tests completed."
 put_item "NODE#scan" "failed" "scan" "Security Scan failed."
 put_item "NODE#approval" "blocked" "approval" "Blocked by Security Scan."
+put_item "NODE#staging" "blocked" "staging" "Staging deploy blocked by Security Scan."
+put_item "NODE#smoke" "blocked" "smoke" "Smoke Test blocked by Security Scan."
 put_item "NODE#prod" "blocked" "prod" "Production deploy blocked by upstream dependency."
 
 echo "Seeded DynamoDB demo run: $RUN_ID"

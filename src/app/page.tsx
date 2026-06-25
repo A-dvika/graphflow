@@ -28,11 +28,19 @@ const statusLabels: Record<Status, string> = {
   waiting: "Waiting",
 };
 
+type ReleaseRunResponse = {
+  statuses: Record<string, Status>;
+  events: string[];
+  source: "dynamodb" | "demo-fallback";
+};
+
 export default function Home() {
   const [statuses, setStatuses] = useState<Record<string, Status>>(initialStatuses);
   const [eventLog, setEventLog] = useState<string[]>([
     "Release graph loaded from Aurora PostgreSQL template.",
   ]);
+  const [backendSource, setBackendSource] = useState<ReleaseRunResponse["source"]>("demo-fallback");
+  const [isLoadingBackend, setIsLoadingBackend] = useState(false);
   const criticalPath = useMemo(() => findCriticalPath(), []);
   const blockedCount = Object.values(statuses).filter((status) => status === "blocked").length;
   const completedCount = Object.values(statuses).filter((status) => status === "success").length;
@@ -41,6 +49,19 @@ export default function Home() {
 
   function appendLog(message: string) {
     setEventLog((current) => [message, ...current].slice(0, 8));
+  }
+
+  async function loadBackendRun() {
+    setIsLoadingBackend(true);
+    try {
+      const response = await fetch("/api/runs/run_demo_001", { cache: "no-store" });
+      const run = (await response.json()) as ReleaseRunResponse;
+      setStatuses(run.statuses);
+      setEventLog(run.events.length > 0 ? run.events : ["No backend events found for this run."]);
+      setBackendSource(run.source);
+    } finally {
+      setIsLoadingBackend(false);
+    }
   }
 
   function startRelease() {
@@ -145,6 +166,13 @@ export default function Home() {
               className="rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
             >
               Start Release
+            </button>
+            <button
+              onClick={loadBackendRun}
+              disabled={isLoadingBackend}
+              className="rounded-md border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+            >
+              {isLoadingBackend ? "Loading" : "Load Backend Run"}
             </button>
             <button
               onClick={injectFailure}
@@ -268,7 +296,11 @@ export default function Home() {
 
           <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-base font-semibold">Event stream</h2>
-            <p className="mt-1 text-sm text-slate-500">DynamoDB stores state changes per run.</p>
+            <p className="mt-1 text-sm text-slate-500">
+              {backendSource === "dynamodb"
+                ? "Loaded from DynamoDB GraphFlowRuns."
+                : "Using local fallback until AWS env vars are configured."}
+            </p>
             <div className="mt-4 space-y-2">
               {eventLog.map((event, index) => (
                 <div key={`${event}-${index}`} className="rounded-md bg-slate-50 p-3 text-sm text-slate-700">

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { putRunNodeState } from "@/lib/aws/dynamodb";
 import { analyzeRun, initialStatuses, type Status } from "@/lib/graphflow";
 
 export async function POST() {
@@ -7,6 +8,12 @@ export async function POST() {
     ...initialStatuses,
     build: "running",
   };
+  const write = await putRunNodeState({
+    runId,
+    nodeId: "build",
+    status: "running",
+    message: "Run started. Lambda worker picked up Build node.",
+  });
 
   return NextResponse.json({
     runId,
@@ -21,6 +28,7 @@ export async function POST() {
         nodeId: "build",
       },
     },
+    source: write.source,
     storage: {
       planned: "DynamoDB",
       table: "GraphFlowRuns",
