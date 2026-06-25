@@ -19,6 +19,7 @@ AWS_SECRET_ACCESS_KEY
 AWS_REGION=us-east-1
 AWS_DEFAULT_REGION=us-east-1
 GRAPHFLOW_RUNS_TABLE=GraphFlowRuns
+GRAPHFLOW_EVENT_BUS=graphflow-events
 ```
 
 Do not commit these values.
@@ -35,6 +36,21 @@ Start a run:
 
 ```text
 POST /api/runs/start
+```
+
+Apply an action to the demo run:
+
+```text
+POST /api/runs/run_demo_001/actions
+```
+
+Supported actions:
+
+```json
+{ "action": "reset" }
+{ "action": "start" }
+{ "action": "fail-security" }
+{ "action": "approve" }
 ```
 
 Ingest a GitLab CI node update:
@@ -55,6 +71,20 @@ Example payload:
 ```
 
 If a node is ingested as `failed`, GraphFlow writes downstream nodes as `blocked`.
+
+## UI Integration
+
+The dashboard buttons now call backend routes:
+
+- **Start Release** -> `POST /api/runs/run_demo_001/actions` with `start`
+- **Inject Failure** -> `POST /api/runs/run_demo_001/actions` with `fail-security`
+- **Approve** -> `POST /api/runs/run_demo_001/actions` with `approve`
+- **Reset** -> `POST /api/runs/run_demo_001/actions` with `reset`
+- **Load Backend Run** -> `GET /api/runs/run_demo_001`
+
+When AWS variables are present, these actions write run snapshots to DynamoDB and publish a
+GraphFlow event to EventBridge. Without AWS variables, they return deterministic fallback data for
+local development.
 
 ## Example GitLab Project Integration
 

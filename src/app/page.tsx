@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  downstreamOf,
   findCriticalPath,
   initialStatuses,
   releaseEdges,
@@ -34,6 +33,8 @@ type ReleaseRunResponse = {
   source: "dynamodb" | "demo-fallback";
 };
 
+const demoRunId = "run_demo_001";
+
 export default function Home() {
   const [statuses, setStatuses] = useState<Record<string, Status>>(initialStatuses);
   const [eventLog, setEventLog] = useState<string[]>([
@@ -41,107 +42,45 @@ export default function Home() {
   ]);
   const [backendSource, setBackendSource] = useState<ReleaseRunResponse["source"]>("demo-fallback");
   const [isLoadingBackend, setIsLoadingBackend] = useState(false);
+  const [activeAction, setActiveAction] = useState<string | null>(null);
   const criticalPath = useMemo(() => findCriticalPath(), []);
   const blockedCount = Object.values(statuses).filter((status) => status === "blocked").length;
   const completedCount = Object.values(statuses).filter((status) => status === "success").length;
   const waitingNode = releaseNodes.find((node) => statuses[node.id] === "waiting");
   const failedNode = releaseNodes.find((node) => statuses[node.id] === "failed");
 
-  function appendLog(message: string) {
-    setEventLog((current) => [message, ...current].slice(0, 8));
+  function applyRunResponse(run: ReleaseRunResponse) {
+    setStatuses(run.statuses);
+    setEventLog(run.events.length > 0 ? run.events : ["No backend events found for this run."]);
+    setBackendSource(run.source);
   }
 
   async function loadBackendRun() {
     setIsLoadingBackend(true);
     try {
-      const response = await fetch("/api/runs/run_demo_001", { cache: "no-store" });
+      const response = await fetch(`/api/runs/${demoRunId}`, { cache: "no-store" });
       const run = (await response.json()) as ReleaseRunResponse;
-      setStatuses(run.statuses);
-      setEventLog(run.events.length > 0 ? run.events : ["No backend events found for this run."]);
-      setBackendSource(run.source);
+      applyRunResponse(run);
     } finally {
       setIsLoadingBackend(false);
     }
   }
 
-  function startRelease() {
-    setStatuses({
-      ...initialStatuses,
-      build: "running",
-    });
-    setEventLog(["Run started. Lambda worker picked up Build node."]);
-
-    window.setTimeout(() => {
-      setStatuses((current) => ({
-        ...current,
-        build: "success",
-        unit: "running",
-        scan: "running",
-      }));
-      appendLog("Build succeeded. EventBridge unlocked Unit Tests and Security Scan.");
-    }, 900);
-
-    window.setTimeout(() => {
-      setStatuses((current) => ({
-        ...current,
-        unit: "success",
-      }));
-      appendLog("Unit Tests completed in 7 minutes.");
-    }, 1800);
-
-    window.setTimeout(() => {
-      setStatuses((current) => ({
-        ...current,
-        scan: "success",
-        approval: "waiting",
-      }));
-      appendLog("Security Scan passed. Release Approval is waiting on humans.");
-    }, 2600);
-  }
-
-  function injectFailure() {
-    const impacted = downstreamOf("scan");
-    setStatuses((current) => {
-      const next: Record<string, Status> = { ...current, scan: "failed" };
-      impacted.forEach((id) => {
-        next[id] = "blocked";
+  async function runBackendAction(action: "reset" | "start" | "fail-security" | "approve") {
+    setActiveAction(action);
+    try {
+      const response = await fetch(`/api/runs/${demoRunId}/actions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action }),
       });
-      return next;
-    });
-    appendLog("Security Scan failed. GraphFlow blocked every downstream production step.");
-  }
-
-  function approveRelease() {
-    setStatuses((current) => ({
-      ...current,
-      approval: "success",
-      staging: "running",
-      smoke: "running",
-    }));
-    appendLog("Approval granted. Staging and Smoke Test started in parallel.");
-
-    window.setTimeout(() => {
-      setStatuses((current) => ({
-        ...current,
-        staging: "success",
-        smoke: "success",
-        prod: "running",
-      }));
-      appendLog("Parallel checks complete. Production deploy unlocked.");
-    }, 900);
-
-    window.setTimeout(() => {
-      setStatuses((current) => ({
-        ...current,
-        prod: "success",
-      }));
-      appendLog("Production deploy succeeded. Release is complete.");
-    }, 1700);
-  }
-
-  function resetRelease() {
-    setStatuses(initialStatuses);
-    setEventLog(["Release graph loaded from Aurora PostgreSQL template."]);
+      const run = (await response.json()) as ReleaseRunResponse;
+      applyRunResponse(run);
+    } finally {
+      setActiveAction(null);
+    }
   }
 
   return (
@@ -162,36 +101,39 @@ export default function Home() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={startRelease}
+              onClick={() => runBackendAction("start")}
+              disabled={Boolean(activeAction)}
               className="rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
             >
-              Start Release
+              {activeAction === "start" ? "Starting" : "Start Release"}
             </button>
             <button
               onClick={loadBackendRun}
-              disabled={isLoadingBackend}
+              disabled={isLoadingBackend || Boolean(activeAction)}
               className="rounded-md border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
               {isLoadingBackend ? "Loading" : "Load Backend Run"}
             </button>
             <button
-              onClick={injectFailure}
-              className="rounded-md border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+              onClick={() => runBackendAction("fail-security")}
+              disabled={Boolean(activeAction)}
+              className="rounded-md border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
-              Inject Failure
+              {activeAction === "fail-security" ? "Failing" : "Inject Failure"}
             </button>
             <button
-              onClick={approveRelease}
-              disabled={!waitingNode}
+              onClick={() => runBackendAction("approve")}
+              disabled={!waitingNode || Boolean(activeAction)}
               className="rounded-md border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
-              Approve
+              {activeAction === "approve" ? "Approving" : "Approve"}
             </button>
             <button
-              onClick={resetRelease}
-              className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              onClick={() => runBackendAction("reset")}
+              disabled={Boolean(activeAction)}
+              className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
             >
-              Reset
+              {activeAction === "reset" ? "Resetting" : "Reset"}
             </button>
           </div>
         </div>

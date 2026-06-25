@@ -41,6 +41,7 @@ See:
 
 - `GET /api/workflows/release-template`
 - `GET /api/runs/run_demo_001`
+- `POST /api/runs/run_demo_001/actions`
 - `POST /api/runs/start`
 - `POST /api/ingest/gitlab`
 

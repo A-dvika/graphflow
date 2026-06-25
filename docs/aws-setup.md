@@ -147,6 +147,17 @@ vercel login
 bash scripts/deploy-vercel.sh
 ```
 
+Add these Vercel environment variables before relying on live backend reads:
+
+```text
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+AWS_REGION
+AWS_DEFAULT_REGION
+GRAPHFLOW_RUNS_TABLE
+GRAPHFLOW_EVENT_BUS
+```
+
 Submission needs:
 
 - Published Vercel Project Link
