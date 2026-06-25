@@ -9,7 +9,7 @@ echo "Deploying GraphFlow AWS foundation"
 echo "region: $AWS_REGION"
 echo "stack:  $STACK_NAME"
 
-aws cloudformation deploy \
+if ! aws cloudformation deploy \
   --region "$AWS_REGION" \
   --stack-name "$STACK_NAME" \
   --template-file "$ROOT_DIR/infra/graphflow-foundation.yaml" \
@@ -17,7 +17,16 @@ aws cloudformation deploy \
   --parameter-overrides \
     ProjectName=graphflow \
     RunsTableName=GraphFlowRuns \
-    EventBusName=graphflow-events
+    EventBusName=graphflow-events; then
+  echo
+  echo "CloudFormation deployment failed. Recent stack events:"
+  aws cloudformation describe-stack-events \
+    --region "$AWS_REGION" \
+    --stack-name "$STACK_NAME" \
+    --query "StackEvents[0:10].{LogicalId:LogicalResourceId,Status:ResourceStatus,Reason:ResourceStatusReason}" \
+    --output table
+  exit 1
+fi
 
 echo
 aws cloudformation describe-stacks \

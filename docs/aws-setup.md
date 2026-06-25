@@ -26,6 +26,17 @@ AWS console path:
 
 Do not paste access keys into docs, commits, screenshots, or chat.
 
+If CloudFormation is stuck in `UPDATE_ROLLBACK_FAILED` after a permission error, fix the IAM policy
+first, then run:
+
+```bash
+aws cloudformation continue-update-rollback \
+  --region us-east-1 \
+  --stack-name graphflow-foundation
+```
+
+After the stack returns to a stable rollback or complete state, retry the GitLab pipeline.
+
 ## 3. CLI Foundation Deploy
 
 Run this from Git Bash, WSL, macOS, or Linux after configuring AWS CLI credentials:
