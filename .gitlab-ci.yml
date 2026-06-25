@@ -1,0 +1,58 @@
+stages:
+  - validate
+  - deploy
+
+variables:
+  AWS_REGION: "us-east-1"
+  AWS_DEFAULT_REGION: "us-east-1"
+  STACK_NAME: "graphflow-foundation"
+  RUN_ID: "run_demo_001"
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.npm"
+
+cache:
+  key:
+    files:
+      - package-lock.json
+  paths:
+    - .npm/
+
+validate:
+  stage: validate
+  image: node:20.19-bookworm
+  before_script:
+    - npm ci
+  script:
+    - npm run lint
+    - npm run build
+
+deploy_aws_foundation:
+  stage: deploy
+  image:
+    name: public.ecr.aws/aws-cli/aws-cli:2
+    entrypoint: [""]
+  needs:
+    - validate
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - aws sts get-caller-identity
+    - bash scripts/deploy-aws-foundation.sh
+    - bash scripts/seed-demo-run.sh
+  environment:
+    name: aws/us-east-1
+
+deploy_vercel:
+  stage: deploy
+  image: node:20.19-bookworm
+  needs:
+    - validate
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  before_script:
+    - npm ci
+  script:
+    - npx vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+    - npx vercel build --prod --token="$VERCEL_TOKEN"
+    - npx vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+  environment:
+    name: production

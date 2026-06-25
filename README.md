@@ -33,6 +33,7 @@ See:
 
 - `docs/aws-setup.md`
 - `docs/architecture.md`
+- `docs/gitlab-cicd.md`
 - `database/aurora-schema.sql`
 
 ## API Routes
