@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash scripts/check-prereqs.sh)",
+      "Bash(pip --version)",
+      "Bash(npm i *)",
+      "Bash(pip install *)",
+      "Bash(ssh -o StrictHostKeyChecking=accept-new -T git@gitlab.com)",
+      "Bash(echo \"---ssh keys---\" && ls -la ~/.ssh/*.pub 2>&1)",
+      "Read(//c/Users/HP/.ssh/**)",
+      "Bash(git init *)",
+      "Bash(git config *)",
+      "Bash(git remote *)"
+    ]
+  }
+}
