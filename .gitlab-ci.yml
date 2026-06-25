@@ -27,13 +27,15 @@ validate:
 
 deploy_aws_foundation:
   stage: deploy
-  image:
-    name: public.ecr.aws/aws-cli/aws-cli:2
-    entrypoint: [""]
+  image: python:3.12-bookworm
   needs:
     - validate
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends awscli
+    - aws --version
   script:
     - aws sts get-caller-identity
     - bash scripts/deploy-aws-foundation.sh
