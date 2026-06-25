@@ -196,6 +196,15 @@ export DATABASE_URL='postgres://user:password@host:5432/graphflow?sslmode=requir
 bash scripts/apply-aurora-schema.sh
 ```
 
+CI/CD alternative:
+
+```bash
+bash scripts/deploy-aurora.sh
+bash scripts/bootstrap-aurora-data-api.sh
+```
+
+In GitLab, this is exposed as the manual `deploy_aurora_graph` job.
+
 Direct run lookup:
 
 ```text

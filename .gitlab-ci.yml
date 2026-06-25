@@ -42,6 +42,25 @@ deploy_aws_foundation:
   environment:
     name: aws/us-east-1
 
+deploy_aurora_graph:
+  stage: deploy
+  image: python:3.12-bookworm
+  needs:
+    - validate
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+      allow_failure: true
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends awscli
+    - aws --version
+  script:
+    - bash scripts/deploy-aurora.sh
+    - bash scripts/bootstrap-aurora-data-api.sh
+  environment:
+    name: aws/aurora-us-east-1
+
 deploy_vercel:
   stage: deploy
   image: node:20.19-bookworm

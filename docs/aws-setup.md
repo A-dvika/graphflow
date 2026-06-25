@@ -59,6 +59,15 @@ This creates:
 
 Purpose: stores the workflow graph.
 
+Recommended automated path:
+
+1. Open GitLab pipeline.
+2. Run the manual job named `deploy_aurora_graph`.
+3. The job deploys `infra/graphflow-aurora.yaml`.
+4. The job applies `database/aurora-bootstrap-data-api.sql` through the RDS Data API.
+
+This keeps Aurora out of every normal push because it is the costlier part of the architecture.
+
 Recommended hackathon setup:
 
 - Engine: Aurora PostgreSQL
@@ -72,6 +81,14 @@ Apply schema from Git Bash after the database is reachable:
 ```bash
 export DATABASE_URL='postgres://user:password@host:5432/graphflow?sslmode=require'
 bash scripts/apply-aurora-schema.sh
+```
+
+Alternative CLI automation:
+
+```bash
+export AWS_REGION=us-east-1
+bash scripts/deploy-aurora.sh
+bash scripts/bootstrap-aurora-data-api.sh
 ```
 
 Tables:
