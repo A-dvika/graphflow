@@ -31,4 +31,5 @@ if [ "$missing" -ne 0 ]; then
   exit 1
 fi
 
-aws sts get-caller-identity --output table
+aws sts get-caller-identity >/dev/null
+echo "ok: AWS credentials are valid"

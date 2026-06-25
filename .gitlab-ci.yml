@@ -37,7 +37,6 @@ deploy_aws_foundation:
     - apt-get install -y --no-install-recommends awscli
     - aws --version
   script:
-    - aws sts get-caller-identity
     - bash scripts/deploy-aws-foundation.sh
     - bash scripts/seed-demo-run.sh
   environment:

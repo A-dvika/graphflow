@@ -70,6 +70,13 @@ Default branch only:
 - Seeds DynamoDB demo data
 - Deploys the Next.js app to Vercel production
 
+## Common AWS Failure
+
+If `deploy_aws_foundation` fails with `AccessDenied` for CloudFormation actions such as
+`cloudformation:DescribeStacks`, the GitLab AWS user needs more permissions.
+
+Attach `infra/graphflow-deployer-policy.json` to the CI IAM user, then retry the pipeline.
+
 ## First Push Flow
 
 ```bash

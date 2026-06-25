@@ -8,7 +8,25 @@ Use `us-east-1` unless you already picked another region. Keep resources small f
 2. Create a cost budget named `graphflow-hackathon-budget`.
 3. Set the budget to `$80` so you get warned before the `$100` credit is exhausted.
 
-## 2. CLI Foundation Deploy
+## 2. IAM Permissions For CI
+
+The GitLab pipeline needs permission to create the hackathon resources.
+
+Attach the policy in `infra/graphflow-deployer-policy.json` to the IAM user used by GitLab CI.
+
+AWS console path:
+
+1. Open **IAM -> Users**.
+2. Select the CI user.
+3. Open **Permissions**.
+4. Choose **Add permissions -> Create inline policy**.
+5. Choose **JSON**.
+6. Paste `infra/graphflow-deployer-policy.json`.
+7. Save it as `GraphFlowDeployerPolicy`.
+
+Do not paste access keys into docs, commits, screenshots, or chat.
+
+## 3. CLI Foundation Deploy
 
 Run this from Git Bash, WSL, macOS, or Linux after configuring AWS CLI credentials:
 
@@ -25,7 +43,7 @@ This creates:
 - EventBridge bus: `graphflow-events`
 - Lambda function: `graphflow-node-runner`
 
-## 3. Aurora PostgreSQL
+## 4. Aurora PostgreSQL
 
 Purpose: stores the workflow graph.
 
@@ -48,7 +66,7 @@ Screenshot needed for submission:
 - Aurora cluster/database visible in AWS Console
 - Optional: query editor showing `select * from workflow_graph;`
 
-## 4. DynamoDB
+## 5. DynamoDB
 
 Purpose: stores execution state for release runs.
 
@@ -79,7 +97,7 @@ Screenshot needed for submission:
 - DynamoDB table list showing `GraphFlowRuns`
 - Items tab showing at least one run item
 
-## 5. EventBridge
+## 6. EventBridge
 
 Purpose: routes execution events between workflow nodes.
 
@@ -99,7 +117,7 @@ Screenshot needed:
 
 - EventBridge custom bus or rule named with `graphflow`
 
-## 6. Lambda
+## 7. Lambda
 
 Purpose: simulates node execution.
 
@@ -118,7 +136,7 @@ Screenshot needed:
 
 - Lambda function page showing `graphflow-node-runner`
 
-## 7. Vercel
+## 8. Vercel
 
 Purpose: hosts the Next.js frontend.
 
@@ -134,7 +152,7 @@ Submission needs:
 - Published Vercel Project Link
 - Vercel Team ID
 
-## 8. Demo Script
+## 9. Demo Script
 
 1. Open GraphFlow dashboard.
 2. Show graph and say Aurora stores nodes and edges.
