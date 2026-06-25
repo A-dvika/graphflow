@@ -41,11 +41,22 @@ See:
 
 - `GET /api/workflows/release-template`
 - `GET /api/runs/run_demo_001`
+- `GET /api/projects/graphflow/runs`
 - `POST /api/runs/run_demo_001/actions`
 - `POST /api/runs/start`
 - `POST /api/ingest/gitlab`
 
 These routes are the integration points for Aurora PostgreSQL, DynamoDB, and CI/CD ingestion.
+
+## CI/CD Onboarding
+
+Example files:
+
+- `examples/gitlab-ci-graphflow.yml`
+- `examples/graphflow.config.json`
+
+A team can add GraphFlow as a reporting stage in its existing GitLab pipeline, send job status to
+GraphFlow, and get a release dashboard without replacing its CI/CD system.
 
 ## CLI Deployment
 

@@ -4,6 +4,14 @@ set -euo pipefail
 AWS_REGION="${AWS_REGION:-us-east-1}"
 RUN_ID="${RUN_ID:-run_demo_001}"
 TABLE_NAME="${TABLE_NAME:-GraphFlowRuns}"
+TENANT_ID="${TENANT_ID:-demo}"
+PROJECT_ID="${PROJECT_ID:-graphflow}"
+WORKFLOW_ID="${WORKFLOW_ID:-release-command-center}"
+UPDATED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+EXPIRES_AT="$(($(date +%s) + 30 * 24 * 60 * 60))"
+PK="TENANT#$TENANT_ID#PROJECT#$PROJECT_ID#RUN#$RUN_ID"
+GSI1PK="TENANT#$TENANT_ID#PROJECT#$PROJECT_ID"
+GSI1SK="RUN#$UPDATED_AT#$RUN_ID"
 
 put_item() {
   local sk="$1"
@@ -15,12 +23,17 @@ put_item() {
     --region "$AWS_REGION" \
     --table-name "$TABLE_NAME" \
     --item "{
-      \"pk\": {\"S\": \"$RUN_ID\"},
+      \"pk\": {\"S\": \"$PK\"},
       \"sk\": {\"S\": \"$sk\"},
-      \"workflowId\": {\"S\": \"release-command-center\"},
+      \"tenantId\": {\"S\": \"$TENANT_ID\"},
+      \"projectId\": {\"S\": \"$PROJECT_ID\"},
+      \"workflowId\": {\"S\": \"$WORKFLOW_ID\"},
+      \"runId\": {\"S\": \"$RUN_ID\"},
       \"nodeId\": {\"S\": \"$node_id\"},
       \"status\": {\"S\": \"$status\"},
-      \"message\": {\"S\": \"$message\"}
+      \"message\": {\"S\": \"$message\"},
+      \"updatedAt\": {\"S\": \"$UPDATED_AT\"},
+      \"expiresAt\": {\"N\": \"$EXPIRES_AT\"}
     }"
 }
 
@@ -28,11 +41,18 @@ aws dynamodb put-item \
   --region "$AWS_REGION" \
   --table-name "$TABLE_NAME" \
   --item "{
-    \"pk\": {\"S\": \"$RUN_ID\"},
+    \"pk\": {\"S\": \"$PK\"},
     \"sk\": {\"S\": \"META\"},
-    \"workflowId\": {\"S\": \"release-command-center\"},
-    \"status\": {\"S\": \"running\"},
-    \"message\": {\"S\": \"Demo release run seeded from CLI.\"}
+    \"gsi1pk\": {\"S\": \"$GSI1PK\"},
+    \"gsi1sk\": {\"S\": \"$GSI1SK\"},
+    \"tenantId\": {\"S\": \"$TENANT_ID\"},
+    \"projectId\": {\"S\": \"$PROJECT_ID\"},
+    \"workflowId\": {\"S\": \"$WORKFLOW_ID\"},
+    \"runId\": {\"S\": \"$RUN_ID\"},
+    \"status\": {\"S\": \"blocked\"},
+    \"message\": {\"S\": \"Demo release run seeded from CLI.\"},
+    \"updatedAt\": {\"S\": \"$UPDATED_AT\"},
+    \"expiresAt\": {\"N\": \"$EXPIRES_AT\"}
   }"
 
 put_item "NODE#build" "success" "build" "Build completed."
@@ -48,5 +68,5 @@ aws dynamodb query \
   --region "$AWS_REGION" \
   --table-name "$TABLE_NAME" \
   --key-condition-expression "pk = :pk" \
-  --expression-attribute-values "{\":pk\":{\"S\":\"$RUN_ID\"}}" \
+  --expression-attribute-values "{\":pk\":{\"S\":\"$PK\"}}" \
   --output table

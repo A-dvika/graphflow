@@ -1,0 +1,65 @@
+stages:
+  - build
+  - test
+  - security
+  - report
+
+variables:
+  GRAPHFLOW_PROJECT_ID: "$CI_PROJECT_PATH_SLUG"
+
+build:
+  stage: build
+  script:
+    - echo "Build application"
+
+unit_tests:
+  stage: test
+  script:
+    - echo "Run unit tests"
+
+security_scan:
+  stage: security
+  script:
+    - echo "Run security scan"
+
+graphflow_report_success:
+  stage: report
+  image: curlimages/curl:latest
+  when: on_success
+  script:
+    - |
+      curl -sS -X POST "$GRAPHFLOW_INGEST_URL/api/ingest/gitlab" \
+        -H "Authorization: Bearer $GRAPHFLOW_INGEST_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{
+          \"tenantId\": \"demo\",
+          \"projectId\": \"$GRAPHFLOW_PROJECT_ID\",
+          \"pipelineId\": \"$CI_PIPELINE_ID\",
+          \"commitSha\": \"$CI_COMMIT_SHA\",
+          \"branch\": \"$CI_COMMIT_REF_NAME\",
+          \"actor\": \"$GITLAB_USER_LOGIN\",
+          \"nodeId\": \"scan\",
+          \"status\": \"success\",
+          \"message\": \"GitLab security scan passed.\"
+        }"
+
+graphflow_report_failure:
+  stage: report
+  image: curlimages/curl:latest
+  when: on_failure
+  script:
+    - |
+      curl -sS -X POST "$GRAPHFLOW_INGEST_URL/api/ingest/gitlab" \
+        -H "Authorization: Bearer $GRAPHFLOW_INGEST_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{
+          \"tenantId\": \"demo\",
+          \"projectId\": \"$GRAPHFLOW_PROJECT_ID\",
+          \"pipelineId\": \"$CI_PIPELINE_ID\",
+          \"commitSha\": \"$CI_COMMIT_SHA\",
+          \"branch\": \"$CI_COMMIT_REF_NAME\",
+          \"actor\": \"$GITLAB_USER_LOGIN\",
+          \"nodeId\": \"scan\",
+          \"status\": \"failed\",
+          \"message\": \"GitLab security scan failed. GraphFlow should block downstream release steps.\"
+        }"

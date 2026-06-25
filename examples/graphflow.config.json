@@ -1,0 +1,51 @@
+{
+  "workflowId": "release-command-center",
+  "name": "Production Release",
+  "nodes": [
+    {
+      "id": "build",
+      "label": "Build",
+      "source": "gitlab:build"
+    },
+    {
+      "id": "unit",
+      "label": "Unit Tests",
+      "source": "gitlab:unit_tests"
+    },
+    {
+      "id": "scan",
+      "label": "Security Scan",
+      "source": "gitlab:security_scan"
+    },
+    {
+      "id": "approval",
+      "label": "Release Approval",
+      "source": "gitlab:manual:production_approval"
+    },
+    {
+      "id": "staging",
+      "label": "Deploy Staging",
+      "source": "gitlab:deploy_staging"
+    },
+    {
+      "id": "smoke",
+      "label": "Smoke Test",
+      "source": "gitlab:smoke_test"
+    },
+    {
+      "id": "prod",
+      "label": "Deploy Production",
+      "source": "gitlab:deploy_production"
+    }
+  ],
+  "edges": [
+    ["build", "unit"],
+    ["build", "scan"],
+    ["unit", "approval"],
+    ["scan", "approval"],
+    ["approval", "staging"],
+    ["approval", "smoke"],
+    ["staging", "prod"],
+    ["smoke", "prod"]
+  ]
+}

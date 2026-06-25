@@ -76,6 +76,8 @@ The CLI foundation deploy creates this table:
 - Partition key: `pk` string
 - Sort key: `sk` string
 - Capacity mode: on-demand
+- Global secondary index: `gsi1`
+- TTL attribute: `expiresAt`
 
 Example items:
 
@@ -156,6 +158,8 @@ AWS_REGION
 AWS_DEFAULT_REGION
 GRAPHFLOW_RUNS_TABLE
 GRAPHFLOW_EVENT_BUS
+GRAPHFLOW_INGEST_TOKEN
+GRAPHFLOW_RUN_RETENTION_DAYS
 ```
 
 Submission needs:

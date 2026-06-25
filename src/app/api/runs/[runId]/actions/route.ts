@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
 import { applyRunAction } from "@/lib/aws/dynamodb";
-
-type RunAction = "reset" | "start" | "fail-security" | "approve";
-
-function isRunAction(value: unknown): value is RunAction {
-  return value === "reset" || value === "start" || value === "fail-security" || value === "approve";
-}
+import { buildRunIdentity, runActionSchema } from "@/lib/backend/model";
 
 export async function POST(request: Request, context: { params: Promise<{ runId: string }> }) {
   const { runId } = await context.params;
   const payload = (await request.json()) as { action?: unknown };
+  const action = runActionSchema.safeParse(payload.action);
 
-  if (!isRunAction(payload.action)) {
+  if (!action.success) {
     return NextResponse.json(
       {
         error: "Invalid run action.",
@@ -22,8 +18,8 @@ export async function POST(request: Request, context: { params: Promise<{ runId:
   }
 
   const run = await applyRunAction({
-    runId,
-    action: payload.action,
+    identity: buildRunIdentity({ runId }),
+    action: action.data,
   });
 
   return NextResponse.json(run);

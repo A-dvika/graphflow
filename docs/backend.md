@@ -20,6 +20,8 @@ AWS_REGION=us-east-1
 AWS_DEFAULT_REGION=us-east-1
 GRAPHFLOW_RUNS_TABLE=GraphFlowRuns
 GRAPHFLOW_EVENT_BUS=graphflow-events
+GRAPHFLOW_INGEST_TOKEN=<random shared secret for CI ingest>
+GRAPHFLOW_RUN_RETENTION_DAYS=30
 ```
 
 Do not commit these values.
@@ -30,6 +32,12 @@ Read the seeded run:
 
 ```text
 GET /api/runs/run_demo_001
+```
+
+List recent runs for a project:
+
+```text
+GET /api/projects/graphflow/runs
 ```
 
 Start a run:
@@ -63,6 +71,8 @@ Example payload:
 
 ```json
 {
+  "tenantId": "demo",
+  "projectId": "graphflow",
   "pipelineId": "12345",
   "nodeId": "scan",
   "status": "failed",
@@ -71,6 +81,15 @@ Example payload:
 ```
 
 If a node is ingested as `failed`, GraphFlow writes downstream nodes as `blocked`.
+
+If `GRAPHFLOW_INGEST_TOKEN` is configured, external ingest endpoints require:
+
+```text
+Authorization: Bearer <GRAPHFLOW_INGEST_TOKEN>
+```
+
+The demo dashboard action route is intentionally left callable for the hackathon demo. In a
+production version, this would move behind user/session authentication.
 
 ## UI Integration
 
@@ -108,3 +127,52 @@ graphflow_report:
 
 For the hackathon, this proves the onboarding model: teams keep their existing CI/CD and add a
 GraphFlow reporting stage.
+
+See:
+
+- `examples/gitlab-ci-graphflow.yml`
+- `examples/graphflow.config.json`
+
+## DynamoDB Access Patterns
+
+`GraphFlowRuns` uses a single-table design.
+
+Direct run lookup:
+
+```text
+pk = TENANT#<tenantId>#PROJECT#<projectId>#RUN#<runId>
+sk = META | NODE#<nodeId>
+```
+
+Recent runs by project:
+
+```text
+gsi1pk = TENANT#<tenantId>#PROJECT#<projectId>
+gsi1sk = RUN#<updatedAt>#<runId>
+```
+
+The table is on-demand and TTL-ready. This means high-volume CI events can be written without
+capacity planning, and old run records can expire after the configured retention window.
+
+## Useful Commands
+
+Query the seeded run from Git Bash:
+
+```bash
+aws dynamodb query \
+  --region us-east-1 \
+  --table-name GraphFlowRuns \
+  --key-condition-expression "pk = :pk" \
+  --expression-attribute-values '{":pk":{"S":"TENANT#demo#PROJECT#graphflow#RUN#run_demo_001"}}'
+```
+
+List recent runs for the demo project through the GSI:
+
+```bash
+aws dynamodb query \
+  --region us-east-1 \
+  --table-name GraphFlowRuns \
+  --index-name gsi1 \
+  --key-condition-expression "gsi1pk = :pk" \
+  --expression-attribute-values '{":pk":{"S":"TENANT#demo#PROJECT#graphflow"}}'
+```
