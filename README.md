@@ -12,7 +12,7 @@ Built for **H0: Hack the Zero Stack with Vercel v0 and AWS Databases**.
 npm run dev
 ```
 
-Open `http://127.0.0.1:3000`.
+Open the local URL printed by Next.js in your terminal.
 
 Demo flow:
 

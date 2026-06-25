@@ -33,8 +33,8 @@ Required variables:
 | `AWS_DEFAULT_REGION` | `us-east-1` | No |
 | `AWS_REGION` | `us-east-1` | No |
 | `VERCEL_TOKEN` | Vercel account token | Yes |
-| `VERCEL_ORG_ID` | Vercel team/user org ID | No |
-| `VERCEL_PROJECT_ID` | Vercel project ID | No |
+| `VERCEL_ORG_ID` | Vercel project metadata from `vercel link` | No |
+| `VERCEL_PROJECT_ID` | Vercel project metadata from `vercel link` | No |
 
 ## Vercel IDs
 
@@ -45,10 +45,8 @@ vercel login
 vercel link
 ```
 
-This creates `.vercel/project.json`, which contains:
-
-- `orgId` -> use as `VERCEL_ORG_ID`
-- `projectId` -> use as `VERCEL_PROJECT_ID`
+This creates `.vercel/project.json`. Copy the required Vercel project metadata into GitLab
+variables only.
 
 Do not commit `.vercel/`; it is already ignored.
 
