@@ -68,7 +68,7 @@ function getAwsRegion() {
   return process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "us-east-1";
 }
 
-function getDocumentClient() {
+export function getDocumentClient() {
   return DynamoDBDocumentClient.from(
     new DynamoDBClient({
       region: getAwsRegion(),

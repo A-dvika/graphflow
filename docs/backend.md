@@ -4,7 +4,8 @@ GraphFlow backend now has three responsibilities:
 
 1. Read release run state from DynamoDB.
 2. Accept CI/CD status updates through an ingest API.
-3. Run deterministic graph analysis for blockers, downstream impact, and critical path.
+3. Register workflow graph configs for project onboarding.
+4. Run deterministic graph analysis for blockers, downstream impact, and critical path.
 
 ## Runtime Environment
 
@@ -38,6 +39,28 @@ List recent runs for a project:
 
 ```text
 GET /api/projects/graphflow/runs
+```
+
+Register a project workflow graph:
+
+```text
+POST /api/workflows/register
+```
+
+Example payload:
+
+```json
+{
+  "tenantId": "demo",
+  "projectId": "graphflow",
+  "workflowId": "release-command-center",
+  "name": "Production Release",
+  "nodes": [
+    { "id": "build", "label": "Build", "source": "gitlab:build" },
+    { "id": "scan", "label": "Security Scan", "source": "gitlab:security_scan" }
+  ],
+  "edges": [["build", "scan"]]
+}
 ```
 
 Start a run:
@@ -136,6 +159,13 @@ See:
 ## DynamoDB Access Patterns
 
 `GraphFlowRuns` uses a single-table design.
+
+Workflow config:
+
+```text
+pk = TENANT#<tenantId>#PROJECT#<projectId>
+sk = WORKFLOW#<workflowId>
+```
 
 Direct run lookup:
 

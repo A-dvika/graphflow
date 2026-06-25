@@ -1,21 +1,14 @@
 import { NextResponse } from "next/server";
-import { findCriticalPath, releaseEdges, releaseNodes } from "@/lib/graphflow";
+import { getWorkflowConfig } from "@/lib/aws/workflows";
 
-export function GET() {
-  return NextResponse.json({
-    workflow: {
-      id: "release-command-center",
-      name: "Production Release",
-      description: "Demo workflow stored as graph primitives.",
-    },
-    nodes: releaseNodes,
-    edges: releaseEdges,
-    analysis: {
-      criticalPath: findCriticalPath(),
-    },
-    storage: {
-      planned: "Aurora PostgreSQL",
-      tables: ["workflows", "workflow_nodes", "workflow_edges"],
-    },
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const workflow = await getWorkflowConfig({
+    tenantId: url.searchParams.get("tenantId") ?? undefined,
+    projectId: url.searchParams.get("projectId") ?? undefined,
+    projectPath: url.searchParams.get("projectPath") ?? undefined,
+    workflowId: url.searchParams.get("workflowId") ?? undefined,
   });
+
+  return NextResponse.json(workflow);
 }

@@ -40,6 +40,7 @@ See:
 ## API Routes
 
 - `GET /api/workflows/release-template`
+- `POST /api/workflows/register`
 - `GET /api/runs/run_demo_001`
 - `GET /api/projects/graphflow/runs`
 - `POST /api/runs/run_demo_001/actions`

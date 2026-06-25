@@ -25,8 +25,27 @@ export const gitLabIngestSchema = z.object({
   actor: z.string().max(160).optional(),
 });
 
+export const workflowNodeConfigSchema = z.object({
+  id: z.string().min(1).max(120),
+  label: z.string().min(1).max(160),
+  source: z.string().min(1).max(240).optional(),
+  type: z.enum(["compute", "quality", "security", "approval", "deploy"]).optional(),
+  duration: z.number().positive().optional(),
+});
+
+export const workflowConfigSchema = z.object({
+  tenantId: z.string().min(1).max(80).optional(),
+  projectId: z.string().min(1).max(120).optional(),
+  projectPath: z.string().min(1).max(240).optional(),
+  workflowId: z.string().min(1).max(120).optional(),
+  name: z.string().min(1).max(160),
+  nodes: z.array(workflowNodeConfigSchema).min(1).max(80),
+  edges: z.array(z.tuple([z.string().min(1).max(120), z.string().min(1).max(120)])).max(160),
+});
+
 export type RunAction = z.infer<typeof runActionSchema>;
 export type GitLabIngestPayload = z.infer<typeof gitLabIngestSchema>;
+export type WorkflowConfigPayload = z.infer<typeof workflowConfigSchema>;
 
 export type RunIdentity = {
   tenantId: string;
@@ -75,6 +94,14 @@ export function projectRunsPartitionKey(identity: Pick<RunIdentity, "tenantId" |
 
 export function projectRunSortKey(updatedAt: string, runId: string) {
   return `RUN#${updatedAt}#${runId}`;
+}
+
+export function projectPartitionKey(identity: Pick<RunIdentity, "tenantId" | "projectId">) {
+  return `TENANT#${identity.tenantId}#PROJECT#${identity.projectId}`;
+}
+
+export function workflowSortKey(workflowId: string) {
+  return `WORKFLOW#${workflowId}`;
 }
 
 export function normalizeStatus(value: string | undefined): Status {

@@ -1,4 +1,5 @@
 stages:
+  - graphflow
   - build
   - test
   - security
@@ -6,6 +7,16 @@ stages:
 
 variables:
   GRAPHFLOW_PROJECT_ID: "$CI_PROJECT_PATH_SLUG"
+
+graphflow_register:
+  stage: graphflow
+  image: curlimages/curl:latest
+  script:
+    - |
+      curl -sS -X POST "$GRAPHFLOW_INGEST_URL/api/workflows/register" \
+        -H "Authorization: Bearer $GRAPHFLOW_INGEST_TOKEN" \
+        -H "Content-Type: application/json" \
+        --data-binary @graphflow.config.json
 
 build:
   stage: build

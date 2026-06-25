@@ -1,4 +1,6 @@
 {
+  "tenantId": "demo",
+  "projectId": "graphflow",
   "workflowId": "release-command-center",
   "name": "Production Release",
   "nodes": [
