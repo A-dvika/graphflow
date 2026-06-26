@@ -35,6 +35,8 @@ See:
 - `docs/architecture.md`
 - `docs/product-ui-vision.md`
 - `docs/enterprise-slice-status.md`
+- `docs/data-structures-and-algorithms.md`
+- `docs/code-map.md`
 - `docs/backend.md`
 - `docs/gitlab-cicd.md`
 - `database/aurora-schema.sql`
