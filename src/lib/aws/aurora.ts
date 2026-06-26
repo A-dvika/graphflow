@@ -1,3 +1,8 @@
+import {
+  ExecuteStatementCommand,
+  type Field,
+  RDSDataClient,
+} from "@aws-sdk/client-rds-data";
 import { Pool } from "pg";
 import { findCriticalPath, type FlowEdge, type FlowNode } from "@/lib/graphflow";
 
@@ -22,6 +27,31 @@ type WorkflowEdgeRow = {
 };
 
 let pool: Pool | undefined;
+let rdsDataClient: RDSDataClient | undefined;
+
+function getDataApiConfig() {
+  const resourceArn = process.env.AURORA_CLUSTER_ARN;
+  const secretArn = process.env.AURORA_SECRET_ARN;
+  const database = process.env.AURORA_DATABASE_NAME ?? process.env.AURORA_DB_NAME ?? "graphflow";
+
+  if (!resourceArn || !secretArn) {
+    return null;
+  }
+
+  return {
+    database,
+    resourceArn,
+    secretArn,
+  };
+}
+
+function getDataApiClient() {
+  rdsDataClient ??= new RDSDataClient({
+    region: process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "us-east-1",
+  });
+
+  return rdsDataClient;
+}
 
 function getPool() {
   if (!process.env.DATABASE_URL) {
@@ -47,7 +77,122 @@ function normalizeNodeType(value: string): FlowNode["type"] {
   return "compute";
 }
 
-export async function getWorkflowFromAurora(workflowId = "release-command-center") {
+function stringField(field: Field | undefined) {
+  if (!field || field.isNull) {
+    return null;
+  }
+
+  if ("stringValue" in field && field.stringValue !== undefined) {
+    return field.stringValue;
+  }
+
+  if ("longValue" in field && field.longValue !== undefined) {
+    return String(field.longValue);
+  }
+
+  if ("doubleValue" in field && field.doubleValue !== undefined) {
+    return String(field.doubleValue);
+  }
+
+  return null;
+}
+
+function numberField(field: Field | undefined) {
+  if (!field || field.isNull) {
+    return 0;
+  }
+
+  if ("longValue" in field && field.longValue !== undefined) {
+    return field.longValue;
+  }
+
+  if ("doubleValue" in field && field.doubleValue !== undefined) {
+    return field.doubleValue;
+  }
+
+  if ("stringValue" in field && field.stringValue !== undefined) {
+    return Number(field.stringValue);
+  }
+
+  return 0;
+}
+
+async function getWorkflowFromAuroraDataApi(workflowId: string) {
+  const config = getDataApiConfig();
+
+  if (!config) {
+    return null;
+  }
+
+  const client = getDataApiClient();
+  const parameter = {
+    name: "workflowId",
+    value: { stringValue: workflowId },
+  };
+
+  const workflowResult = await client.send(
+    new ExecuteStatementCommand({
+      ...config,
+      sql: "select id, name, description from workflows where id = :workflowId limit 1",
+      parameters: [parameter],
+    }),
+  );
+  const workflowRecord = workflowResult.records?.[0];
+
+  if (!workflowRecord) {
+    return null;
+  }
+
+  const nodesResult = await client.send(
+    new ExecuteStatementCommand({
+      ...config,
+      sql: `select id, label, node_type, planned_duration_minutes, position_x, position_y
+            from workflow_nodes
+            where workflow_id = :workflowId
+            order by id`,
+      parameters: [parameter],
+    }),
+  );
+  const edgesResult = await client.send(
+    new ExecuteStatementCommand({
+      ...config,
+      sql: `select from_node_id, to_node_id
+            from workflow_edges
+            where workflow_id = :workflowId
+            order by from_node_id, to_node_id`,
+      parameters: [parameter],
+    }),
+  );
+
+  const nodes: FlowNode[] = (nodesResult.records ?? []).map((record) => ({
+    id: stringField(record[0]) ?? "",
+    label: stringField(record[1]) ?? "",
+    type: normalizeNodeType(stringField(record[2]) ?? "compute"),
+    duration: numberField(record[3]),
+    x: numberField(record[4]),
+    y: numberField(record[5]),
+  }));
+  const edges: FlowEdge[] = (edgesResult.records ?? []).map((record) => ({
+    from: stringField(record[0]) ?? "",
+    to: stringField(record[1]) ?? "",
+  }));
+
+  return {
+    workflow: {
+      id: stringField(workflowRecord[0]) ?? workflowId,
+      name: stringField(workflowRecord[1]) ?? "Production Release",
+      description: stringField(workflowRecord[2]) ?? "Workflow graph loaded from Aurora PostgreSQL.",
+    },
+    nodes,
+    edges,
+    analysis: {
+      criticalPath: findCriticalPath(nodes, edges),
+    },
+    source: "aurora-data-api" as const,
+  };
+}
+
+async function getWorkflowFromAuroraPg(workflowId: string) {
   const auroraPool = getPool();
 
   if (!auroraPool) {
@@ -116,4 +261,18 @@ export async function getWorkflowFromAurora(workflowId = "release-command-center
     console.error("Failed to load workflow graph from Aurora", error);
     return null;
   }
+}
+
+export async function getWorkflowFromAurora(workflowId = "release-command-center") {
+  try {
+    const dataApiWorkflow = await getWorkflowFromAuroraDataApi(workflowId);
+
+    if (dataApiWorkflow) {
+      return dataApiWorkflow;
+    }
+  } catch (error) {
+    console.error("Failed to load workflow graph from Aurora Data API", error);
+  }
+
+  return getWorkflowFromAuroraPg(workflowId);
 }

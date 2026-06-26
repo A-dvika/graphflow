@@ -1,6 +1,6 @@
 # Backend Development
 
-GraphFlow backend now has three responsibilities:
+GraphFlow backend now has four responsibilities:
 
 1. Read release run state from DynamoDB.
 2. Accept CI/CD status updates through an ingest API.
@@ -23,11 +23,16 @@ GRAPHFLOW_RUNS_TABLE=GraphFlowRuns
 GRAPHFLOW_EVENT_BUS=graphflow-events
 GRAPHFLOW_INGEST_TOKEN=<random shared secret for CI ingest>
 GRAPHFLOW_RUN_RETENTION_DAYS=30
-DATABASE_URL=<Aurora PostgreSQL connection string>
-DATABASE_POOL_MAX=3
+AURORA_CLUSTER_ARN=<Aurora cluster ARN>
+AURORA_SECRET_ARN=<Aurora managed secret ARN>
+AURORA_DATABASE_NAME=graphflow
 ```
 
 Do not commit these values.
+
+`DATABASE_URL` and `DATABASE_POOL_MAX` are still supported for local/direct PostgreSQL access, but
+the recommended deployed path is the RDS Data API variables above. That lets Vercel read the private
+Aurora graph without opening database network access.
 
 ## API Routes
 
@@ -43,8 +48,9 @@ Read workflow graph:
 GET /api/workflows/release-template
 ```
 
-This route tries Aurora PostgreSQL first when `DATABASE_URL` is configured. If Aurora is not
-configured or the workflow is missing, it falls back to DynamoDB/static demo data.
+This route tries Aurora through the RDS Data API first when `AURORA_CLUSTER_ARN` and
+`AURORA_SECRET_ARN` are configured. It can also use direct PostgreSQL through `DATABASE_URL`. If
+Aurora is not configured or the workflow is missing, it falls back to DynamoDB/static demo data.
 
 List recent runs for a project:
 
@@ -204,6 +210,15 @@ bash scripts/bootstrap-aurora-data-api.sh
 ```
 
 In GitLab, this is exposed as the manual `deploy_aurora_graph` job.
+
+The deployed app reads this schema through the RDS Data API. Add these Vercel runtime variables from
+the Aurora stack outputs:
+
+```text
+AURORA_CLUSTER_ARN
+AURORA_SECRET_ARN
+AURORA_DATABASE_NAME=graphflow
+```
 
 Direct run lookup:
 

@@ -91,6 +91,18 @@ bash scripts/deploy-aurora.sh
 bash scripts/bootstrap-aurora-data-api.sh
 ```
 
+After the manual GitLab job succeeds, copy the Aurora stack outputs into Vercel runtime environment
+variables:
+
+```text
+AURORA_CLUSTER_ARN=<ClusterArn output>
+AURORA_SECRET_ARN=<SecretArn output>
+AURORA_DATABASE_NAME=graphflow
+```
+
+GraphFlow uses these values to read workflow graph data through the RDS Data API, so the Aurora
+cluster can stay private.
+
 Tables:
 
 - `workflows`
