@@ -1,366 +1,601 @@
 "use client";
 
-import React, { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertCircle,
+  Bot,
   CheckCircle2,
-  Clock,
   GitBranch,
-  Server,
-  TrendingUp,
-  ChevronRight,
-  RefreshCw,
+  GitCommit,
+  Lock,
   Play,
+  RefreshCw,
+  RotateCcw,
+  ShieldAlert,
+  Sparkles,
 } from "lucide-react";
-import { ReleaseFlowGraph } from "./release-flow-graph";
+import { ReleaseFlowGraph } from "@/components/release-flow-graph";
+import { type FlowEdge, type FlowNode, type Status } from "@/lib/graphflow";
 
-interface Release {
-  id: string;
-  version: string;
-  status: "ready" | "in-progress" | "completed" | "failed";
-  branch: string;
-  environment: string;
-  progress: number;
-  completedGates: number;
-  totalGates: number;
-  author: string;
-  timestamp: string;
+type GateVerdict = "PASS" | "WARN" | "FAIL";
+
+type GateDecision = {
+  verdict: GateVerdict;
+  shouldBlock: boolean;
+  summary: string;
+  reasons: string[];
+  failedNodes: string[];
+  blockedNodes: string[];
+  waitingNodes: string[];
+  blastRadius: string[];
+  requiredNodes: string[];
+  criticalPath: {
+    path: string[];
+    minutes: number;
+  };
+};
+
+type AgentInsight = {
+  mode: "llm" | "deterministic";
+  headline: string;
+  explanation: string;
+  nextActions: string[];
+  riskAreas: string[];
+  model: {
+    configured: boolean;
+    provider: string;
+    name: string | null;
+    error?: {
+      name: string;
+      message: string;
+    };
+  };
+};
+
+type RunOverview = {
+  tenantId: string;
+  projectId: string;
+  runId: string;
+  workflowId: string;
+  run: {
+    statuses: Record<string, Status>;
+    events: string[];
+    source: "dynamodb" | "demo-fallback";
+    analysis: {
+      blockedCount: number;
+      completedCount: number;
+      bottleneck: string | null;
+      recommendation: string;
+    };
+  };
+  workflow: {
+    id: string;
+    name: string;
+    description: string;
+    source: string;
+  };
+  graph: {
+    nodes: FlowNode[];
+    edges: FlowEdge[];
+  };
+  gate: GateDecision;
+  insight: AgentInsight;
+  sources: {
+    run: string;
+    workflow: string;
+  };
+};
+
+type RunSummary = {
+  runId: string;
+  workflowId: string;
+  status: string;
+  message: string;
+  updatedAt: string;
+};
+
+type ProjectRunsResponse = {
+  runs: RunSummary[];
+};
+
+const demoRunId = "run_demo_001";
+
+const emptyOverview: RunOverview = {
+  tenantId: "demo",
+  projectId: "graphflow",
+  runId: demoRunId,
+  workflowId: "release-command-center",
+  run: {
+    statuses: {},
+    events: ["Loading release intelligence from GraphFlow backend."],
+    source: "demo-fallback",
+    analysis: {
+      blockedCount: 0,
+      completedCount: 0,
+      bottleneck: null,
+      recommendation: "Loading release analysis.",
+    },
+  },
+  workflow: {
+    id: "release-command-center",
+    name: "Production Release",
+    description: "Loading workflow graph.",
+    source: "loading",
+  },
+  graph: {
+    nodes: [],
+    edges: [],
+  },
+  gate: {
+    verdict: "WARN",
+    shouldBlock: false,
+    summary: "Loading release gate.",
+    reasons: ["Waiting for backend response."],
+    failedNodes: [],
+    blockedNodes: [],
+    waitingNodes: [],
+    blastRadius: [],
+    requiredNodes: [],
+    criticalPath: {
+      path: [],
+      minutes: 0,
+    },
+  },
+  insight: {
+    mode: "deterministic",
+    headline: "GraphFlow is loading release insight.",
+    explanation: "The dashboard will show the graph gate and release agent once backend data is available.",
+    nextActions: ["Load the current run."],
+    riskAreas: [],
+    model: {
+      configured: false,
+      provider: "none",
+      name: null,
+    },
+  },
+  sources: {
+    run: "loading",
+    workflow: "loading",
+  },
+};
+
+function verdictStyles(verdict: GateVerdict) {
+  if (verdict === "PASS") {
+    return {
+      border: "border-[var(--status-success)]",
+      bg: "bg-[var(--status-success)]/10",
+      text: "text-[var(--status-success)]",
+    };
+  }
+
+  if (verdict === "FAIL") {
+    return {
+      border: "border-[var(--status-error)]",
+      bg: "bg-[var(--status-error)]/10",
+      text: "text-[var(--status-error)]",
+    };
+  }
+
+  return {
+    border: "border-[var(--status-warning)]",
+    bg: "bg-[var(--status-warning)]/10",
+    text: "text-[var(--status-warning)]",
+  };
 }
 
-interface QualityGate {
-  id: string;
-  name: string;
-  status: "passed" | "pending" | "failed";
+function statusLabel(status: Status | string) {
+  return status.replace("-", " ").toUpperCase();
 }
 
-const mockReleases: Release[] = [
-  {
-    id: "v2.4.0",
-    version: "2.4.0",
-    status: "in-progress",
-    branch: "main",
-    environment: "staging",
-    progress: 62,
-    completedGates: 5,
-    totalGates: 8,
-    author: "Sarah Chen",
-    timestamp: "2 min ago",
-  },
-  {
-    id: "v2.3.5",
-    version: "2.3.5",
-    status: "completed",
-    branch: "release/2.3.5",
-    environment: "production",
-    progress: 100,
-    completedGates: 8,
-    totalGates: 8,
-    author: "Alex Rodriguez",
-    timestamp: "1 hour ago",
-  },
-  {
-    id: "v2.3.4",
-    version: "2.3.4",
-    status: "failed",
-    branch: "release/2.3.4",
-    environment: "production",
-    progress: 37,
-    completedGates: 3,
-    totalGates: 8,
-    author: "Jordan Kim",
-    timestamp: "4 hours ago",
-  },
-];
+function statusTone(status: Status | string) {
+  if (status === "success") return "text-[var(--status-success)]";
+  if (status === "failed") return "text-[var(--status-error)]";
+  if (status === "blocked" || status === "waiting") return "text-[var(--status-warning)]";
+  if (status === "running") return "text-[var(--status-pending)]";
+  return "text-[var(--foreground-secondary)]";
+}
 
-const qualityGates: QualityGate[] = [
-  { id: "unit-tests", name: "Unit Tests", status: "passed" },
-  { id: "integration", name: "Integration Tests", status: "passed" },
-  { id: "security", name: "Security Scan", status: "pending" },
-  { id: "performance", name: "Performance Baseline", status: "passed" },
-  { id: "compliance", name: "Compliance Check", status: "passed" },
-  { id: "approval", name: "Manual Approval", status: "pending" },
-];
+function runHealth(statuses: Record<string, Status>) {
+  const values = Object.values(statuses);
+
+  if (values.includes("failed") || values.includes("blocked")) return "blocked";
+  if (values.length > 0 && values.every((status) => status === "success")) return "ready";
+  if (values.includes("waiting")) return "waiting";
+  return "running";
+}
+
+function formatSource(source: string) {
+  return source.replace(/-/g, " ");
+}
 
 export function Dashboard() {
-  const [selectedRelease, setSelectedRelease] = useState<Release | null>(mockReleases[0]);
-  const [activeTab, setActiveTab] = useState("releases");
+  const [overview, setOverview] = useState<RunOverview>(emptyOverview);
+  const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [activeTab, setActiveTab] = useState("graph");
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadOverview = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const [overviewResponse, runsResponse] = await Promise.all([
+        fetch(`/api/runs/${demoRunId}/overview`, { cache: "no-store" }),
+        fetch("/api/projects/graphflow/runs?limit=5", { cache: "no-store" }),
+      ]);
+
+      if (!overviewResponse.ok) {
+        throw new Error(`Overview request failed with ${overviewResponse.status}.`);
+      }
+
+      const nextOverview = (await overviewResponse.json()) as RunOverview;
+      const nextRuns = runsResponse.ok ? ((await runsResponse.json()) as ProjectRunsResponse).runs : [];
+
+      setOverview(nextOverview);
+      setRuns(nextRuns);
+      setSelectedNodeId((current) => current ?? nextOverview.gate.failedNodes[0] ?? nextOverview.gate.waitingNodes[0] ?? nextOverview.graph.nodes[0]?.id ?? null);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "GraphFlow could not load backend state.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void Promise.resolve().then(loadOverview);
+  }, [loadOverview]);
+
+  async function runAction(action: "reset" | "start" | "fail-security" | "approve") {
+    setActiveAction(action);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/runs/${demoRunId}/actions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Action failed with ${response.status}.`);
+      }
+
+      await loadOverview();
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : "GraphFlow action failed.");
+    } finally {
+      setActiveAction(null);
+    }
+  }
+
+  const completedCount = overview.graph.nodes.filter((node) => overview.run.statuses[node.id] === "success").length;
+  const failedCount = overview.graph.nodes.filter((node) => overview.run.statuses[node.id] === "failed").length;
+  const blockedCount = overview.graph.nodes.filter((node) => overview.run.statuses[node.id] === "blocked").length;
+  const waitingCount = overview.graph.nodes.filter((node) => overview.run.statuses[node.id] === "waiting").length;
+  const runStatus = runHealth(overview.run.statuses);
+  const progress = overview.graph.nodes.length > 0 ? Math.round((completedCount / overview.graph.nodes.length) * 100) : 0;
+  const verdictStyle = verdictStyles(overview.gate.verdict);
+  const selectedNode = useMemo(
+    () => overview.graph.nodes.find((node) => node.id === selectedNodeId) ?? null,
+    [overview.graph.nodes, selectedNodeId],
+  );
 
   const stats = [
     {
       icon: Activity,
-      label: "Active Releases",
-      value: "3",
-      change: "+12%",
-      color: "text-[var(--status-pending)]",
+      label: "Run Health",
+      value: statusLabel(runStatus),
+      detail: `${completedCount}/${overview.graph.nodes.length} nodes complete`,
+      tone: statusTone(runStatus),
     },
     {
-      icon: CheckCircle2,
-      label: "Deployments Today",
-      value: "12",
-      change: "+8%",
-      color: "text-[var(--status-success)]",
+      icon: Lock,
+      label: "Gate Verdict",
+      value: overview.gate.verdict,
+      detail: overview.gate.shouldBlock ? "Would block production" : "Can continue",
+      tone: verdictStyle.text,
+    },
+    {
+      icon: GitBranch,
+      label: "Critical Path",
+      value: `${overview.gate.criticalPath.minutes}m`,
+      detail: `${overview.gate.criticalPath.path.length} graph nodes`,
+      tone: "text-[var(--status-pending)]",
     },
     {
       icon: AlertCircle,
-      label: "Failed Gates",
-      value: "1",
-      change: "-5%",
-      color: "text-[var(--status-error)]",
-    },
-    {
-      icon: TrendingUp,
-      label: "Success Rate",
-      value: "94%",
-      change: "+2%",
-      color: "text-[var(--status-success)]",
+      label: "Blast Radius",
+      value: String(overview.gate.blastRadius.length),
+      detail: `${blockedCount} blocked, ${failedCount} failed, ${waitingCount} waiting`,
+      tone: overview.gate.blastRadius.length > 0 ? "text-[var(--status-warning)]" : "text-[var(--status-success)]",
     },
   ];
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "ready":
-        return "bg-[var(--status-success)] text-[var(--background)]";
-      case "in-progress":
-        return "bg-[var(--status-pending)] text-[var(--background)]";
-      case "completed":
-        return "bg-[var(--status-success)] text-[var(--background)]";
-      case "failed":
-        return "bg-[var(--status-error)] text-white";
-      case "passed":
-        return "bg-[var(--status-success)] text-[var(--background)]";
-      case "pending":
-        return "bg-[var(--status-warning)] text-[var(--background)]";
-      default:
-        return "bg-[var(--status-neutral)]";
-    }
-  };
-
-  const getGateIcon = (status: string) => {
-    switch (status) {
-      case "passed":
-        return <CheckCircle2 className="w-4 h-4" />;
-      case "pending":
-        return <Clock className="w-4 h-4" />;
-      case "failed":
-        return <AlertCircle className="w-4 h-4" />;
-      default:
-        return null;
-    }
-  };
-
   return (
     <div className="space-y-6">
-      {/* Alert */}
-      <div className="border border-[var(--status-warning)] bg-[var(--status-warning)]/10 rounded-lg p-4 flex items-start gap-3">
-        <AlertCircle className="h-5 w-5 text-[var(--status-warning)] flex-shrink-0 mt-0.5" />
-        <p className="text-sm text-[var(--foreground)]">
-          Release v2.4.0 is in progress. Security scan is running. Estimated completion in 3 minutes.
-        </p>
-      </div>
+      <section className={`rounded-lg border p-4 ${verdictStyle.border} ${verdictStyle.bg}`}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className={`mt-0.5 h-5 w-5 ${verdictStyle.text}`} />
+            <div>
+              <p className={`text-sm font-semibold uppercase tracking-wide ${verdictStyle.text}`}>
+                GraphFlow Release Gate: {overview.gate.verdict}
+              </p>
+              <h2 className="mt-1 text-xl font-semibold text-[var(--foreground)]">{overview.gate.summary}</h2>
+              <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
+                {overview.gate.reasons[0] ?? "No active risk detected."}
+              </p>
+            </div>
+          </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, index) => {
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => runAction("start")}
+              disabled={Boolean(activeAction)}
+              className="inline-flex items-center gap-2 rounded-lg bg-[var(--status-pending)] px-3 py-2 text-sm font-semibold text-[var(--background)] transition hover:opacity-90 disabled:opacity-50"
+            >
+              <Play className="h-4 w-4" />
+              {activeAction === "start" ? "Starting" : "Start"}
+            </button>
+            <button
+              onClick={() => runAction("fail-security")}
+              disabled={Boolean(activeAction)}
+              className="inline-flex items-center gap-2 rounded-lg border border-[var(--status-error)] px-3 py-2 text-sm font-semibold text-[var(--status-error)] transition hover:bg-[var(--status-error)]/10 disabled:opacity-50"
+            >
+              <AlertCircle className="h-4 w-4" />
+              {activeAction === "fail-security" ? "Injecting" : "Inject Failure"}
+            </button>
+            <button
+              onClick={() => runAction("approve")}
+              disabled={Boolean(activeAction)}
+              className="inline-flex items-center gap-2 rounded-lg border border-[var(--status-success)] px-3 py-2 text-sm font-semibold text-[var(--status-success)] transition hover:bg-[var(--status-success)]/10 disabled:opacity-50"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {activeAction === "approve" ? "Approving" : "Approve"}
+            </button>
+            <button
+              onClick={() => runAction("reset")}
+              disabled={Boolean(activeAction)}
+              className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface)] disabled:opacity-50"
+            >
+              <RotateCcw className="h-4 w-4" />
+              {activeAction === "reset" ? "Resetting" : "Reset"}
+            </button>
+            <button
+              onClick={() => loadOverview()}
+              disabled={isLoading}
+              className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface)] disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {error && (
+        <div className="rounded-lg border border-[var(--status-error)] bg-[var(--status-error)]/10 p-4 text-sm text-[var(--status-error)]">
+          {error}
+        </div>
+      )}
+
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={index} className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
+            <div key={stat.label} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
                   <p className="text-sm text-[var(--foreground-secondary)]">{stat.label}</p>
-                  <div className="flex items-baseline gap-2 mt-2">
-                    <p className="text-2xl font-bold text-[var(--foreground)]">{stat.value}</p>
-                    <span className="text-xs text-[var(--status-success)]">{stat.change}</span>
-                  </div>
+                  <p className={`mt-2 text-2xl font-bold ${stat.tone}`}>{stat.value}</p>
+                  <p className="mt-1 text-xs text-[var(--foreground-secondary)]">{stat.detail}</p>
                 </div>
-                <div className={`${stat.color}`}>
-                  <Icon className="w-6 h-6" />
-                </div>
+                <Icon className={`h-6 w-6 ${stat.tone}`} />
               </div>
             </div>
           );
         })}
-      </div>
+      </section>
 
-      {/* Main Content Tabs */}
-      <div className="space-y-4">
-        <div className="flex gap-2 border-b border-[var(--border)]">
-          <button
-            onClick={() => setActiveTab("releases")}
-            className={`px-4 py-3 border-b-2 font-medium transition-colors ${
-              activeTab === "releases"
-                ? "border-[var(--status-pending)] text-[var(--foreground)]"
-                : "border-transparent text-[var(--foreground-secondary)] hover:text-[var(--foreground)]"
-            }`}
-          >
-            Recent Releases
-          </button>
-          <button
-            onClick={() => setActiveTab("pipeline")}
-            className={`px-4 py-3 border-b-2 font-medium transition-colors ${
-              activeTab === "pipeline"
-                ? "border-[var(--status-pending)] text-[var(--foreground)]"
-                : "border-transparent text-[var(--foreground-secondary)] hover:text-[var(--foreground)]"
-            }`}
-          >
-            Pipeline
-          </button>
-          <button
-            onClick={() => setActiveTab("gates")}
-            className={`px-4 py-3 border-b-2 font-medium transition-colors ${
-              activeTab === "gates"
-                ? "border-[var(--status-pending)] text-[var(--foreground)]"
-                : "border-transparent text-[var(--foreground-secondary)] hover:text-[var(--foreground)]"
-            }`}
-          >
-            Quality Gates
-          </button>
+      <section className="grid gap-4 xl:grid-cols-[1fr_360px]">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div className="mb-3 flex items-center justify-between text-sm">
+            <span className="text-[var(--foreground-secondary)]">Release progress</span>
+            <span className="font-semibold text-[var(--foreground)]">{progress}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-[var(--background)]">
+            <div className="h-full rounded-full bg-[var(--status-pending)] transition-all" style={{ width: `${progress}%` }} />
+          </div>
         </div>
 
-        {/* Releases Tab */}
-        {activeTab === "releases" && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Release List */}
-              <div className="lg:col-span-2 space-y-3">
-                {mockReleases.map((release) => (
-                  <div
-                    key={release.id}
-                    className={`bg-[var(--surface)] border-[var(--border)] border cursor-pointer transition-all rounded-lg p-4 ${
-                      selectedRelease?.id === release.id ? "ring-2 ring-[var(--status-pending)]" : ""
-                    }`}
-                    onClick={() => setSelectedRelease(release)}
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-[var(--foreground)]">v{release.version}</h3>
-                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${getStatusColor(release.status)}`}>
-                              {release.status.replace("-", " ").toUpperCase()}
-                            </span>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-[var(--foreground-secondary)]">Storage sources</p>
+              <p className="mt-1 text-sm font-semibold text-[var(--foreground)]">
+                {formatSource(overview.sources.workflow)} / {formatSource(overview.sources.run)}
+              </p>
+            </div>
+            <GitCommit className="h-5 w-5 text-[var(--status-pending)]" />
+          </div>
+        </div>
+      </section>
+
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-2 border-b border-[var(--border)]">
+          {[
+            ["graph", "Release Graph"],
+            ["gates", "Gate Evidence"],
+            ["agent", "Agent Insight"],
+            ["audit", "Audit Timeline"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === id
+                  ? "border-[var(--status-pending)] text-[var(--foreground)]"
+                  : "border-transparent text-[var(--foreground-secondary)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "graph" && (
+          <ReleaseFlowGraph
+            blastRadius={overview.gate.blastRadius}
+            criticalPath={overview.gate.criticalPath.path}
+            edges={overview.graph.edges}
+            nodes={overview.graph.nodes}
+            onSelectNode={setSelectedNodeId}
+            selectedNodeId={selectedNodeId}
+            statuses={overview.run.statuses}
+          />
+        )}
+
+        {activeTab === "gates" && (
+          <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
+              <h3 className="text-lg font-semibold text-[var(--foreground)]">Required Release Gates</h3>
+              <p className="mt-1 text-sm text-[var(--foreground-secondary)]">
+                These checks come from the workflow graph and determine the production gate.
+              </p>
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
+                {overview.graph.nodes
+                  .filter((node) => overview.gate.requiredNodes.includes(node.id))
+                  .map((node) => {
+                    const status = overview.run.statuses[node.id] ?? "pending";
+                    return (
+                      <button
+                        key={node.id}
+                        onClick={() => {
+                          setSelectedNodeId(node.id);
+                          setActiveTab("graph");
+                        }}
+                        className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4 text-left transition hover:border-[var(--status-pending)]"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-[var(--foreground)]">{node.label}</p>
+                            <p className="mt-1 text-xs text-[var(--foreground-secondary)]">{node.type}</p>
                           </div>
-                          <p className="text-xs text-[var(--foreground-secondary)] mt-1">Release ID: {release.id}</p>
+                          <span className={`text-xs font-semibold ${statusTone(status)}`}>{statusLabel(status)}</span>
                         </div>
-                        <span className="text-xs text-[var(--foreground-secondary)]">{release.timestamp}</span>
-                      </div>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
 
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div className="flex items-center gap-2 text-[var(--foreground-secondary)]">
-                          <GitBranch className="w-4 h-4" />
-                          <span>{release.branch}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-[var(--foreground-secondary)]">
-                          <Server className="w-4 h-4" />
-                          <span>{release.environment}</span>
-                        </div>
-                      </div>
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
+              <h3 className="text-lg font-semibold text-[var(--foreground)]">Decision Evidence</h3>
+              <ul className="mt-4 space-y-3 text-sm">
+                {overview.gate.reasons.map((reason) => (
+                  <li key={reason} className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 text-[var(--foreground-secondary)]">
+                    {reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
 
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-[var(--foreground-secondary)]">Quality Gates Progress</span>
-                          <span className="text-[var(--foreground)]">{release.completedGates}/{release.totalGates}</span>
-                        </div>
-                        <div className="w-full bg-[var(--background)] rounded-full h-2 overflow-hidden">
-                          <div
-                            className="bg-[var(--status-pending)] h-full transition-all"
-                            style={{ width: `${release.progress}%` }}
-                          />
-                        </div>
-                      </div>
+        {activeTab === "agent" && (
+          <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
+              <div className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-[var(--status-pending)]" />
+                <h3 className="text-lg font-semibold text-[var(--foreground)]">Release Risk Agent</h3>
+              </div>
+              <p className="mt-3 text-xl font-semibold text-[var(--foreground)]">{overview.insight.headline}</p>
+              <p className="mt-3 text-sm leading-6 text-[var(--foreground-secondary)]">{overview.insight.explanation}</p>
+              <div className="mt-5">
+                <p className="text-sm font-semibold text-[var(--foreground)]">Recommended next actions</p>
+                <ol className="mt-3 space-y-2">
+                  {overview.insight.nextActions.map((action, index) => (
+                    <li key={action} className="flex gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 text-sm text-[var(--foreground-secondary)]">
+                      <span className="font-semibold text-[var(--status-pending)]">{index + 1}</span>
+                      <span>{action}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
 
-                      <div className="flex items-center justify-between pt-2">
-                        <span className="text-xs text-[var(--foreground-secondary)]">by {release.author}</span>
-                        <ChevronRight className="w-4 h-4 text-[var(--foreground-secondary)]" />
-                      </div>
-                    </div>
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-[var(--status-pending)]" />
+                <h3 className="font-semibold text-[var(--foreground)]">Agent Runtime</h3>
+              </div>
+              <dl className="mt-4 space-y-3 text-sm">
+                <div className="flex justify-between border-b border-[var(--border)] pb-2">
+                  <dt className="text-[var(--foreground-secondary)]">Mode</dt>
+                  <dd className="text-[var(--foreground)]">{overview.insight.mode}</dd>
+                </div>
+                <div className="flex justify-between border-b border-[var(--border)] pb-2">
+                  <dt className="text-[var(--foreground-secondary)]">Provider</dt>
+                  <dd className="text-[var(--foreground)]">{overview.insight.model.provider}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-[var(--foreground-secondary)]">Configured</dt>
+                  <dd className="text-[var(--foreground)]">{overview.insight.model.configured ? "yes" : "no"}</dd>
+                </div>
+              </dl>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "audit" && (
+          <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
+              <h3 className="text-lg font-semibold text-[var(--foreground)]">Run Event Timeline</h3>
+              <div className="mt-5 space-y-3">
+                {overview.run.events.map((event, index) => (
+                  <div key={`${event}-${index}`} className="flex gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+                    <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--status-pending)]/15 text-xs font-semibold text-[var(--status-pending)]">
+                      {index + 1}
+                    </span>
+                    <p className="text-sm text-[var(--foreground-secondary)]">{event}</p>
                   </div>
                 ))}
               </div>
-
-              {/* Release Details */}
-              {selectedRelease && (
-                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg h-fit p-4">
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="font-semibold text-[var(--foreground)] mb-1">Release Details</h3>
-                      <p className="text-xs text-[var(--foreground-secondary)]">v{selectedRelease.version}</p>
-                    </div>
-
-                    <div className="space-y-3 text-sm">
-                      <div className="flex justify-between py-2 border-b border-[var(--border)]">
-                        <span className="text-[var(--foreground-secondary)]">Status</span>
-                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getStatusColor(selectedRelease.status)}`}>
-                          {selectedRelease.status.replace("-", " ")}
-                        </span>
-                      </div>
-                      <div className="flex justify-between py-2 border-b border-[var(--border)]">
-                        <span className="text-[var(--foreground-secondary)]">Environment</span>
-                        <span className="text-[var(--foreground)]">{selectedRelease.environment}</span>
-                      </div>
-                      <div className="flex justify-between py-2 border-b border-[var(--border)]">
-                        <span className="text-[var(--foreground-secondary)]">Branch</span>
-                        <span className="text-[var(--foreground)] font-mono text-xs">{selectedRelease.branch}</span>
-                      </div>
-                      <div className="flex justify-between py-2">
-                        <span className="text-[var(--foreground-secondary)]">Author</span>
-                        <span className="text-[var(--foreground)]">{selectedRelease.author}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 pt-4 border-t border-[var(--border)]">
-                      <button className="w-full bg-[var(--status-pending)] text-[var(--background)] py-2 rounded-lg font-medium text-sm hover:bg-[var(--status-pending)]/90 flex items-center justify-center gap-2">
-                        <Play className="w-4 h-4" />
-                        View Details
-                      </button>
-                      <button className="w-full border border-[var(--border)] text-[var(--foreground)] py-2 rounded-lg font-medium text-sm hover:bg-[var(--surface)] flex items-center justify-center gap-2">
-                        <RefreshCw className="w-4 h-4" />
-                        Refresh
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Pipeline Tab */}
-        {activeTab === "pipeline" && <ReleaseFlowGraph />}
-
-        {/* Quality Gates Tab */}
-        {activeTab === "gates" && (
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-6 space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold text-[var(--foreground)] mb-1">Quality Gates Status</h3>
-              <p className="text-sm text-[var(--foreground-secondary)]">Current deployment requirements and validation status</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {qualityGates.map((gate) => (
-                <div key={gate.id} className="bg-[var(--background)] border border-[var(--border)] rounded-lg p-4 hover:border-[var(--status-pending)] transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${getStatusColor(gate.status)}`}>
-                        {getGateIcon(gate.status)}
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
+              <h3 className="text-lg font-semibold text-[var(--foreground)]">Recent Runs</h3>
+              <div className="mt-4 space-y-3">
+                {runs.length > 0 ? (
+                  runs.map((run) => (
+                    <div key={run.runId} className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-mono text-xs text-[var(--foreground)]">{run.runId}</p>
+                        <span className={`text-xs font-semibold ${statusTone(run.status)}`}>{run.status}</span>
                       </div>
-                      <div>
-                        <p className="font-medium text-[var(--foreground)] text-sm">{gate.name}</p>
-                        <p className="text-xs text-[var(--foreground-secondary)]">
-                          {gate.status.charAt(0).toUpperCase() + gate.status.slice(1)}
-                        </p>
-                      </div>
+                      <p className="mt-2 line-clamp-2 text-xs text-[var(--foreground-secondary)]">{run.message}</p>
                     </div>
-                    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getStatusColor(gate.status)}`}>
-                      {gate.status === "passed" ? "PASSED" : gate.status === "pending" ? "PENDING" : "FAILED"}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                  ))
+                ) : (
+                  <p className="text-sm text-[var(--foreground-secondary)]">No recent runs found yet.</p>
+                )}
+              </div>
             </div>
-          </div>
+          </section>
         )}
       </div>
+
+      {selectedNode && (
+        <p className="text-xs text-[var(--foreground-secondary)]">
+          Selected node: <span className="font-semibold text-[var(--foreground)]">{selectedNode.label}</span>
+        </p>
+      )}
     </div>
   );
 }
