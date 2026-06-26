@@ -34,6 +34,7 @@ See:
 - `docs/aws-setup.md`
 - `docs/architecture.md`
 - `docs/product-ui-vision.md`
+- `docs/enterprise-slice-status.md`
 - `docs/backend.md`
 - `docs/gitlab-cicd.md`
 - `database/aurora-schema.sql`

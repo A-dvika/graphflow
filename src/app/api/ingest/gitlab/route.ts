@@ -35,6 +35,14 @@ export async function POST(request: Request) {
     nodeId,
     status,
     message,
+    actor: payload.actor,
+    metadata: {
+      commitSha: payload.commitSha,
+      branch: payload.branch,
+      projectPath: payload.projectPath,
+      pipelineId: payload.pipelineId,
+      source: "gitlab",
+    },
   });
 
   return NextResponse.json({

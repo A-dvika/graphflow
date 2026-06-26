@@ -3,7 +3,9 @@ import {
   type Field,
   RDSDataClient,
 } from "@aws-sdk/client-rds-data";
+import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
+import { type RunIdentity } from "@/lib/backend/model";
 import { findCriticalPath, type FlowEdge, type FlowNode } from "@/lib/graphflow";
 
 type WorkflowRow = {
@@ -24,6 +26,32 @@ type WorkflowNodeRow = {
 type WorkflowEdgeRow = {
   from_node_id: string;
   to_node_id: string;
+};
+
+export type AuditEventInput = {
+  identity: RunIdentity;
+  eventType: string;
+  actor?: string;
+  nodeId?: string;
+  status?: string;
+  message: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type AuditEvent = {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  workflowId: string;
+  runId: string;
+  eventType: string;
+  actor: string | null;
+  nodeId: string | null;
+  status: string | null;
+  message: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  source: "aurora-data-api" | "aurora-postgresql";
 };
 
 let pool: Pool | undefined;
@@ -139,6 +167,20 @@ function numberField(field: Field | undefined) {
   }
 
   return 0;
+}
+
+function parseJsonField(field: Field | undefined) {
+  const value = stringField(field);
+
+  if (!value) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(value) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
 export async function probeAuroraDataApi(workflowId = "release-command-center") {
@@ -339,4 +381,152 @@ export async function getWorkflowFromAurora(workflowId = "release-command-center
   }
 
   return getWorkflowFromAuroraPg(workflowId);
+}
+
+export async function writeAuditEventToAurora(input: AuditEventInput) {
+  const id = randomUUID();
+  const metadata = JSON.stringify(input.metadata ?? {});
+  const config = getDataApiConfig();
+
+  if (config) {
+    try {
+      await getDataApiClient().send(
+        new ExecuteStatementCommand({
+          ...config,
+          sql: `insert into release_audit_events
+                (id, tenant_id, project_id, workflow_id, run_id, event_type, actor, node_id, status, message, metadata)
+                values
+                (:id, :tenantId, :projectId, :workflowId, :runId, :eventType, :actor, :nodeId, :status, :message, cast(:metadata as jsonb))`,
+          parameters: [
+            { name: "id", value: { stringValue: id } },
+            { name: "tenantId", value: { stringValue: input.identity.tenantId } },
+            { name: "projectId", value: { stringValue: input.identity.projectId } },
+            { name: "workflowId", value: { stringValue: input.identity.workflowId } },
+            { name: "runId", value: { stringValue: input.identity.runId } },
+            { name: "eventType", value: { stringValue: input.eventType } },
+            { name: "actor", value: input.actor ? { stringValue: input.actor } : { isNull: true } },
+            { name: "nodeId", value: input.nodeId ? { stringValue: input.nodeId } : { isNull: true } },
+            { name: "status", value: input.status ? { stringValue: input.status } : { isNull: true } },
+            { name: "message", value: { stringValue: input.message } },
+            { name: "metadata", value: { stringValue: metadata } },
+          ],
+        }),
+      );
+
+      return { id, source: "aurora-data-api" as const };
+    } catch (error) {
+      console.error("Failed to write audit event through Aurora Data API", error);
+    }
+  }
+
+  const auroraPool = getPool();
+
+  if (!auroraPool) {
+    return { id, source: "unavailable" as const };
+  }
+
+  try {
+    await auroraPool.query(
+      `insert into release_audit_events
+       (id, tenant_id, project_id, workflow_id, run_id, event_type, actor, node_id, status, message, metadata)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)`,
+      [
+        id,
+        input.identity.tenantId,
+        input.identity.projectId,
+        input.identity.workflowId,
+        input.identity.runId,
+        input.eventType,
+        input.actor ?? null,
+        input.nodeId ?? null,
+        input.status ?? null,
+        input.message,
+        metadata,
+      ],
+    );
+
+    return { id, source: "aurora-postgresql" as const };
+  } catch (error) {
+    console.error("Failed to write audit event to Aurora PostgreSQL", error);
+    return { id, source: "unavailable" as const };
+  }
+}
+
+export async function getAuditEventsFromAurora(identity: RunIdentity): Promise<AuditEvent[]> {
+  const config = getDataApiConfig();
+
+  if (config) {
+    try {
+      const result = await getDataApiClient().send(
+        new ExecuteStatementCommand({
+          ...config,
+          sql: `select id, tenant_id, project_id, workflow_id, run_id, event_type, actor, node_id, status, message, metadata::text, created_at::text
+                from release_audit_events
+                where tenant_id = :tenantId and project_id = :projectId and workflow_id = :workflowId and run_id = :runId
+                order by created_at asc
+                limit 500`,
+          parameters: [
+            { name: "tenantId", value: { stringValue: identity.tenantId } },
+            { name: "projectId", value: { stringValue: identity.projectId } },
+            { name: "workflowId", value: { stringValue: identity.workflowId } },
+            { name: "runId", value: { stringValue: identity.runId } },
+          ],
+        }),
+      );
+
+      return (result.records ?? []).map((record) => ({
+        id: stringField(record[0]) ?? "",
+        tenantId: stringField(record[1]) ?? identity.tenantId,
+        projectId: stringField(record[2]) ?? identity.projectId,
+        workflowId: stringField(record[3]) ?? identity.workflowId,
+        runId: stringField(record[4]) ?? identity.runId,
+        eventType: stringField(record[5]) ?? "unknown",
+        actor: stringField(record[6]),
+        nodeId: stringField(record[7]),
+        status: stringField(record[8]),
+        message: stringField(record[9]) ?? "",
+        metadata: parseJsonField(record[10]),
+        createdAt: stringField(record[11]) ?? "",
+        source: "aurora-data-api" as const,
+      }));
+    } catch (error) {
+      console.error("Failed to read audit events through Aurora Data API", error);
+    }
+  }
+
+  const auroraPool = getPool();
+
+  if (!auroraPool) {
+    return [];
+  }
+
+  try {
+    const result = await auroraPool.query(
+      `select id, tenant_id, project_id, workflow_id, run_id, event_type, actor, node_id, status, message, metadata, created_at::text
+       from release_audit_events
+       where tenant_id = $1 and project_id = $2 and workflow_id = $3 and run_id = $4
+       order by created_at asc
+       limit 500`,
+      [identity.tenantId, identity.projectId, identity.workflowId, identity.runId],
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      projectId: row.project_id,
+      workflowId: row.workflow_id,
+      runId: row.run_id,
+      eventType: row.event_type,
+      actor: row.actor,
+      nodeId: row.node_id,
+      status: row.status,
+      message: row.message,
+      metadata: row.metadata ?? {},
+      createdAt: row.created_at,
+      source: "aurora-postgresql" as const,
+    }));
+  } catch (error) {
+    console.error("Failed to read audit events from Aurora PostgreSQL", error);
+    return [];
+  }
 }

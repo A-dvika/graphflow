@@ -1,6 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge";
 import { DynamoDBDocumentClient, PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { writeAuditEventToAurora } from "@/lib/aws/aurora";
 import {
   buildRunIdentity,
   defaultRunId,
@@ -379,6 +380,7 @@ export async function putRunSnapshot(input: {
   messages: Partial<Record<string, string>>;
   metaMessage: string;
   detailType: string;
+  actor?: string;
 }) {
   const run: ReleaseRun = {
     ...input.identity,
@@ -458,6 +460,17 @@ export async function putRunSnapshot(input: {
       analysis: run.analysis,
     },
   });
+  await writeAuditEventToAurora({
+    identity: input.identity,
+    eventType: input.detailType,
+    actor: input.actor,
+    message: input.metaMessage,
+    metadata: {
+      statuses: input.statuses,
+      analysis: run.analysis,
+      source: "snapshot",
+    },
+  });
 
   return run;
 }
@@ -467,6 +480,8 @@ export async function putRunNodeState(input: {
   nodeId: string;
   status: Status;
   message: string;
+  actor?: string;
+  metadata?: Record<string, unknown>;
 }) {
   if (!hasAwsConfig()) {
     return { source: "demo-fallback" as const };
@@ -504,6 +519,18 @@ export async function putRunNodeState(input: {
       message: input.message,
     },
   });
+  await writeAuditEventToAurora({
+    identity: input.identity,
+    eventType: `node.${input.status}`,
+    actor: input.actor,
+    nodeId: input.nodeId,
+    status: input.status,
+    message: input.message,
+    metadata: {
+      ...input.metadata,
+      source: "ingest",
+    },
+  });
 
   return { source: "dynamodb" as const };
 }
@@ -513,6 +540,8 @@ export async function ingestNodeState(input: {
   nodeId: string;
   status: Status;
   message: string;
+  actor?: string;
+  metadata?: Record<string, unknown>;
 }) {
   const write = await putRunNodeState(input);
 
@@ -524,6 +553,11 @@ export async function ingestNodeState(input: {
           nodeId: blockedNodeId,
           status: "blocked",
           message: `Blocked by failed upstream node: ${input.nodeId}.`,
+          actor: input.actor,
+          metadata: {
+            ...input.metadata,
+            blockedBy: input.nodeId,
+          },
         }),
       ),
     );

@@ -41,6 +41,23 @@ type GateDecision = {
     path: string[];
     minutes: number;
   };
+  migrationRisk: {
+    present: boolean;
+    level: "none" | "low" | "medium" | "high";
+    summary: string;
+    nodes: string[];
+    reasons: string[];
+  };
+  policy: {
+    id: string;
+    name: string;
+    failOnFailedOrBlocked: boolean;
+    warnOnWaitingApproval: boolean;
+    requiredNodeTypes: string[];
+    failOnNodeTypes: string[];
+    blockOnMigrationRisk: boolean;
+    requireApprovalBeforeDeploy: boolean;
+  };
 };
 
 type AgentInsight = {
@@ -183,6 +200,23 @@ const emptyOverview: RunOverview = {
     criticalPath: {
       path: [],
       minutes: 0,
+    },
+    migrationRisk: {
+      present: false,
+      level: "none",
+      summary: "No migration risk has been calculated yet.",
+      nodes: [],
+      reasons: [],
+    },
+    policy: {
+      id: "production-release-safety",
+      name: "Production Release Safety Policy",
+      failOnFailedOrBlocked: true,
+      warnOnWaitingApproval: true,
+      requiredNodeTypes: ["quality", "security", "approval", "deploy"],
+      failOnNodeTypes: ["security", "deploy"],
+      blockOnMigrationRisk: true,
+      requireApprovalBeforeDeploy: true,
     },
   },
   insight: {
@@ -456,10 +490,15 @@ export function Dashboard({ section }: DashboardProps) {
     },
     {
       icon: AlertCircle,
-      label: "Blast Radius",
-      value: String(overview.gate.blastRadius.length),
-      detail: `${blockedCount} blocked, ${failedCount} failed, ${waitingCount} waiting`,
-      tone: overview.gate.blastRadius.length > 0 ? "text-[var(--status-warning)]" : "text-[var(--status-success)]",
+      label: "Migration Risk",
+      value: overview.gate.migrationRisk.level.toUpperCase(),
+      detail: overview.gate.migrationRisk.summary,
+      tone:
+        overview.gate.migrationRisk.level === "high"
+          ? "text-[var(--status-error)]"
+          : overview.gate.migrationRisk.level === "medium"
+            ? "text-[var(--status-warning)]"
+            : "text-[var(--status-success)]",
     },
   ];
 
@@ -763,6 +802,16 @@ export function Dashboard({ section }: DashboardProps) {
               <span className="text-[var(--foreground-secondary)]">Required nodes</span>
               <span className="text-[var(--foreground)]">{overview.gate.requiredNodes.length}</span>
             </div>
+            <div className="mt-2 flex justify-between border-t border-[var(--border)] pt-2">
+              <span className="text-[var(--foreground-secondary)]">Policy</span>
+              <span className="text-right text-[var(--foreground)]">{overview.gate.policy.name}</span>
+            </div>
+            <div className="mt-2 flex justify-between border-t border-[var(--border)] pt-2">
+              <span className="text-[var(--foreground-secondary)]">Migration risk</span>
+              <span className={statusTone(overview.gate.migrationRisk.level === "high" ? "failed" : overview.gate.migrationRisk.level === "medium" ? "waiting" : "success")}>
+                {overview.gate.migrationRisk.level}
+              </span>
+            </div>
           </div>
         </aside>
       </section>
@@ -796,10 +845,15 @@ export function Dashboard({ section }: DashboardProps) {
           })}
           {metricCard({
             icon: AlertCircle,
-            label: "Bottleneck",
-            value: overview.run.analysis.bottleneck ?? "none",
-            detail: overview.run.analysis.recommendation,
-            tone: overview.run.analysis.bottleneck ? "text-[var(--status-warning)]" : "text-[var(--status-success)]",
+            label: "Migration Risk",
+            value: overview.gate.migrationRisk.level.toUpperCase(),
+            detail: overview.gate.migrationRisk.summary,
+            tone:
+              overview.gate.migrationRisk.level === "high"
+                ? "text-[var(--status-error)]"
+                : overview.gate.migrationRisk.level === "medium"
+                  ? "text-[var(--status-warning)]"
+                  : "text-[var(--status-success)]",
           })}
           {metricCard({
             icon: Activity,
@@ -964,6 +1018,10 @@ export function Dashboard({ section }: DashboardProps) {
               <dt className="text-[var(--foreground-secondary)]">Agent provider</dt>
               <dd className="text-[var(--foreground)]">{overview.insight.model.provider}</dd>
             </div>
+            <div className="flex justify-between border-b border-[var(--border)] pb-2">
+              <dt className="text-[var(--foreground-secondary)]">Policy</dt>
+              <dd className="text-right text-[var(--foreground)]">{overview.gate.policy.id}</dd>
+            </div>
             <div className="flex justify-between">
               <dt className="text-[var(--foreground-secondary)]">Selected run</dt>
               <dd className="font-mono text-[var(--foreground)]">{overview.runId}</dd>
@@ -992,9 +1050,14 @@ export function Dashboard({ section }: DashboardProps) {
         detail: "Returns PASS, WARN, or FAIL so CI can block unsafe production releases.",
       },
       {
-        title: "Read the command center",
-        code: "GET /api/runs/{runId}/overview",
-        detail: "Combines Aurora graph, DynamoDB run state, gate evidence, and agent insight.",
+        title: "Export compliance evidence",
+        code: "GET /api/runs/{runId}/compliance",
+        detail: "Returns gate decision, policy evidence, audit events, migration risk, and release graph summary.",
+      },
+      {
+        title: "Manage org release policy",
+        code: "PUT /api/policies/{policyId}",
+        detail: "Stores org-level safety rules for required gates, approval evidence, and migration risk.",
       },
     ];
 
