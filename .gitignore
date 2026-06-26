@@ -36,6 +36,13 @@ yarn-error.log*
 # vercel
 .vercel
 
+# v0 sandbox/internal files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+.snowflake/
+.v0-trash/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

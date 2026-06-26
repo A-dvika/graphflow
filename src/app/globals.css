@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Dark operational theme */
+  --background: #1a1a1a;
+  --foreground: #f2f2f2;
+  --card-bg: #252525;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --primary-blue: #3b82f6;
+  --success-green: #10b981;
+  --warning-orange: #f59e0b;
+  --error-red: #ef4444;
+  --pending-purple: #8b5cf6;
 }
 
 @theme inline {
@@ -17,3 +25,18 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Status color classes */
+.status-pending { color: var(--pending-purple); }
+.status-running { color: var(--primary-blue); }
+.status-success { color: var(--success-green); }
+.status-failed { color: var(--error-red); }
+.status-blocked { color: var(--warning-orange); }
+.status-waiting { color: var(--pending-purple); }
+
+.bg-status-pending { background-color: rgba(139, 92, 246, 0.1); border-color: var(--pending-purple); }
+.bg-status-running { background-color: rgba(59, 130, 246, 0.1); border-color: var(--primary-blue); }
+.bg-status-success { background-color: rgba(16, 185, 129, 0.1); border-color: var(--success-green); }
+.bg-status-failed { background-color: rgba(239, 68, 68, 0.1); border-color: var(--error-red); }
+.bg-status-blocked { background-color: rgba(245, 158, 11, 0.1); border-color: var(--warning-orange); }
+.bg-status-waiting { background-color: rgba(139, 92, 246, 0.1); border-color: var(--pending-purple); }
