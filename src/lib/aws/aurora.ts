@@ -45,12 +45,36 @@ function getDataApiConfig() {
   };
 }
 
+export function hasAuroraDataApiConfig() {
+  return Boolean(getDataApiConfig());
+}
+
 function getDataApiClient() {
   rdsDataClient ??= new RDSDataClient({
     region: process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "us-east-1",
   });
 
   return rdsDataClient;
+}
+
+function safeAwsError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return {
+      name: "UnknownError",
+    };
+  }
+
+  const candidate = error as {
+    name?: string;
+    $metadata?: {
+      httpStatusCode?: number;
+    };
+  };
+
+  return {
+    name: candidate.name ?? "AwsError",
+    httpStatusCode: candidate.$metadata?.httpStatusCode,
+  };
 }
 
 function getPool() {
@@ -115,6 +139,46 @@ function numberField(field: Field | undefined) {
   }
 
   return 0;
+}
+
+export async function probeAuroraDataApi(workflowId = "release-command-center") {
+  const config = getDataApiConfig();
+
+  if (!config) {
+    return {
+      configured: false,
+      ok: false,
+      workflowRows: 0,
+    };
+  }
+
+  try {
+    const result = await getDataApiClient().send(
+      new ExecuteStatementCommand({
+        ...config,
+        sql: "select count(*) from workflows where id = :workflowId",
+        parameters: [
+          {
+            name: "workflowId",
+            value: { stringValue: workflowId },
+          },
+        ],
+      }),
+    );
+
+    return {
+      configured: true,
+      ok: true,
+      workflowRows: numberField(result.records?.[0]?.[0]),
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      ok: false,
+      workflowRows: 0,
+      error: safeAwsError(error),
+    };
+  }
 }
 
 async function getWorkflowFromAuroraDataApi(workflowId: string) {
