@@ -33,6 +33,7 @@ See:
 
 - `docs/aws-setup.md`
 - `docs/architecture.md`
+- `docs/architecture.drawio`
 - `docs/product-ui-vision.md`
 - `docs/enterprise-slice-status.md`
 - `docs/data-structures-and-algorithms.md`
