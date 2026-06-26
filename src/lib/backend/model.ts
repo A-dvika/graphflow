@@ -31,6 +31,8 @@ export const workflowNodeConfigSchema = z.object({
   source: z.string().min(1).max(240).optional(),
   type: z.enum(["compute", "quality", "security", "approval", "deploy"]).optional(),
   duration: z.number().positive().optional(),
+  x: z.number().min(0).max(100).optional(),
+  y: z.number().min(0).max(100).optional(),
 });
 
 export const workflowConfigSchema = z.object({

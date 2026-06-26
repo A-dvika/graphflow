@@ -1,0 +1,120 @@
+{
+  "workflowId": "checkout-release-v1",
+  "name": "Checkout Service Production Release",
+  "nodes": [
+    {
+      "id": "build",
+      "label": "Build Checkout Service",
+      "source": "gitlab:build_app",
+      "type": "compute",
+      "duration": 4,
+      "x": 8,
+      "y": 42
+    },
+    {
+      "id": "unit",
+      "label": "Unit Tests",
+      "source": "gitlab:unit_tests",
+      "type": "quality",
+      "duration": 5,
+      "x": 25,
+      "y": 18
+    },
+    {
+      "id": "integration",
+      "label": "Checkout Integration Tests",
+      "source": "gitlab:integration_tests",
+      "type": "quality",
+      "duration": 7,
+      "x": 25,
+      "y": 42
+    },
+    {
+      "id": "dependency_scan",
+      "label": "Dependency Risk Scan",
+      "source": "gitlab:dependency_scan",
+      "type": "security",
+      "duration": 6,
+      "x": 25,
+      "y": 66
+    },
+    {
+      "id": "static_scan",
+      "label": "Static Risk Scan",
+      "source": "gitlab:static_risk_scan",
+      "type": "security",
+      "duration": 6,
+      "x": 42,
+      "y": 66
+    },
+    {
+      "id": "migration_check",
+      "label": "Migration Review",
+      "source": "gitlab:migration_review",
+      "type": "quality",
+      "duration": 5,
+      "x": 42,
+      "y": 30
+    },
+    {
+      "id": "approval",
+      "label": "Production Approval",
+      "source": "gitlab:manual:production_approval",
+      "type": "approval",
+      "duration": 12,
+      "x": 58,
+      "y": 42
+    },
+    {
+      "id": "staging",
+      "label": "Deploy Staging",
+      "source": "gitlab:deploy_staging",
+      "type": "deploy",
+      "duration": 5,
+      "x": 73,
+      "y": 28
+    },
+    {
+      "id": "smoke",
+      "label": "Smoke Tests",
+      "source": "gitlab:smoke_tests",
+      "type": "quality",
+      "duration": 4,
+      "x": 73,
+      "y": 58
+    },
+    {
+      "id": "canary",
+      "label": "Deploy Canary",
+      "source": "gitlab:canary_deploy",
+      "type": "deploy",
+      "duration": 6,
+      "x": 86,
+      "y": 28
+    },
+    {
+      "id": "prod",
+      "label": "Deploy Production",
+      "source": "gitlab:deploy_production",
+      "type": "deploy",
+      "duration": 8,
+      "x": 94,
+      "y": 42
+    }
+  ],
+  "edges": [
+    ["build", "unit"],
+    ["build", "integration"],
+    ["build", "dependency_scan"],
+    ["build", "static_scan"],
+    ["unit", "migration_check"],
+    ["integration", "migration_check"],
+    ["dependency_scan", "approval"],
+    ["static_scan", "approval"],
+    ["migration_check", "approval"],
+    ["approval", "staging"],
+    ["staging", "smoke"],
+    ["smoke", "canary"],
+    ["canary", "prod"]
+  ]
+}

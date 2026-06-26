@@ -115,7 +115,7 @@ function materializeRun(items: RunItem[], fallbackRunId: string, source: Release
   const nodeOrder = new Map(releaseNodes.map((node, index) => [node.id, index]));
 
   for (const item of items) {
-    if (item.nodeId && releaseNodes.some((node) => node.id === item.nodeId)) {
+    if (item.nodeId) {
       statuses[item.nodeId] = normalizeStatus(item.status);
     }
   }
@@ -126,7 +126,15 @@ function materializeRun(items: RunItem[], fallbackRunId: string, source: Release
 
   items
     .filter((item) => item.message && item.nodeId)
-    .sort((a, b) => (nodeOrder.get(a.nodeId ?? "") ?? 99) - (nodeOrder.get(b.nodeId ?? "") ?? 99))
+    .sort((a, b) => {
+      const orderDelta = (nodeOrder.get(a.nodeId ?? "") ?? 99) - (nodeOrder.get(b.nodeId ?? "") ?? 99);
+
+      if (orderDelta !== 0) {
+        return orderDelta;
+      }
+
+      return String(a.updatedAt ?? "").localeCompare(String(b.updatedAt ?? ""));
+    })
     .forEach((item) => events.push(item.message!));
 
   return {

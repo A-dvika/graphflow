@@ -60,9 +60,14 @@ Example files:
 
 - `examples/gitlab-ci-graphflow.yml`
 - `examples/graphflow.config.json`
+- `demo-repos/checkout-service`
 
 A team can add GraphFlow as a reporting stage in its existing GitLab pipeline, send job status to
 GraphFlow, and get a release dashboard without replacing its CI/CD system.
+
+For the most realistic demo, push `demo-repos/checkout-service` as a separate GitLab repository.
+It contains a checkout service, real tests, security checks, migration review, deploy stages, and
+GraphFlow reporter scripts for every CI job.
 
 ## CLI Deployment
 

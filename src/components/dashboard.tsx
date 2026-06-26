@@ -137,6 +137,12 @@ type DashboardProps = {
 };
 
 const demoRunId = "run_demo_001";
+const defaultTarget = {
+  tenantId: "demo",
+  projectId: "graphflow",
+  workflowId: "release-command-center",
+  runId: demoRunId,
+};
 
 const emptyOverview: RunOverview = {
   tenantId: "demo",
@@ -301,6 +307,7 @@ function statusBadge(status: Status | string) {
 }
 
 export function Dashboard({ section }: DashboardProps) {
+  const [target, setTarget] = useState(defaultTarget);
   const [overview, setOverview] = useState<RunOverview>(emptyOverview);
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [health, setHealth] = useState<SystemHealth | null>(null);
@@ -314,9 +321,16 @@ export function Dashboard({ section }: DashboardProps) {
     setError(null);
 
     try {
+      const query = new URLSearchParams({
+        tenantId: target.tenantId,
+        projectId: target.projectId,
+        workflowId: target.workflowId,
+      });
       const [overviewResponse, runsResponse, healthResponse] = await Promise.all([
-        fetch(`/api/runs/${demoRunId}/overview`, { cache: "no-store" }),
-        fetch("/api/projects/graphflow/runs?limit=10", { cache: "no-store" }),
+        fetch(`/api/runs/${target.runId}/overview?${query.toString()}`, { cache: "no-store" }),
+        fetch(`/api/projects/${encodeURIComponent(target.projectId)}/runs?tenantId=${encodeURIComponent(target.tenantId)}&limit=10`, {
+          cache: "no-store",
+        }),
         fetch("/api/system/health", { cache: "no-store" }),
       ]);
 
@@ -344,18 +358,44 @@ export function Dashboard({ section }: DashboardProps) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [target]);
 
   useEffect(() => {
     void Promise.resolve().then(loadConsole);
   }, [loadConsole]);
+
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      const params = new URLSearchParams(window.location.search);
+      const nextTarget = {
+        tenantId: params.get("tenantId") || defaultTarget.tenantId,
+        projectId: params.get("projectId") || defaultTarget.projectId,
+        workflowId: params.get("workflowId") || defaultTarget.workflowId,
+        runId: params.get("runId") || defaultTarget.runId,
+      };
+
+      setTarget((current) =>
+        current.tenantId === nextTarget.tenantId &&
+        current.projectId === nextTarget.projectId &&
+        current.workflowId === nextTarget.workflowId &&
+        current.runId === nextTarget.runId
+          ? current
+          : nextTarget,
+      );
+    });
+  }, []);
 
   async function runAction(action: "reset" | "start" | "fail-security" | "approve") {
     setActiveAction(action);
     setError(null);
 
     try {
-      const response = await fetch(`/api/runs/${demoRunId}/actions`, {
+      const query = new URLSearchParams({
+        tenantId: target.tenantId,
+        projectId: target.projectId,
+        workflowId: target.workflowId,
+      });
+      const response = await fetch(`/api/runs/${target.runId}/actions?${query.toString()}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

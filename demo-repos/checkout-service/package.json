@@ -1,0 +1,21 @@
+{
+  "name": "graphflow-checkout-service-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/pricing.test.js",
+    "test:integration": "node --test test/checkout.integration.test.js",
+    "security:deps": "node scripts/dependency-risk-check.mjs",
+    "security:static": "node scripts/static-risk-check.mjs",
+    "migration:check": "node scripts/migration-check.mjs",
+    "deploy:staging": "node scripts/deploy.mjs staging",
+    "deploy:canary": "node scripts/deploy.mjs canary",
+    "deploy:prod": "node scripts/deploy.mjs production",
+    "smoke": "node scripts/smoke-test.mjs"
+  }
+}
