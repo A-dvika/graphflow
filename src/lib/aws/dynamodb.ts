@@ -264,14 +264,15 @@ export function getDemoRun(runId = defaultRunId): ReleaseRun {
   };
 }
 
-export async function getRunFromDynamoDB(runId: string): Promise<ReleaseRun> {
+export async function getRunFromDynamoDB(run: string | RunIdentity): Promise<ReleaseRun> {
+  const identity = typeof run === "string" ? buildRunIdentity({ runId: run }) : run;
+
   if (!hasAwsConfig()) {
-    return getDemoRun(runId);
+    return getDemoRun(identity.runId);
   }
 
   const documentClient = getDocumentClient();
-  const modernIdentity = buildRunIdentity({ runId });
-  const keysToTry = [runPartitionKey(modernIdentity), legacyRunPartitionKey(runId)];
+  const keysToTry = [runPartitionKey(identity), legacyRunPartitionKey(identity.runId)];
 
   for (const pk of keysToTry) {
     const response = await documentClient.send(
@@ -287,11 +288,11 @@ export async function getRunFromDynamoDB(runId: string): Promise<ReleaseRun> {
     const items = (response.Items ?? []) as RunItem[];
 
     if (items.length > 0) {
-      return materializeRun(items, runId, "dynamodb");
+      return materializeRun(items, identity.runId, "dynamodb");
     }
   }
 
-  return getDemoRun(runId);
+  return getDemoRun(identity.runId);
 }
 
 export async function listProjectRuns(input: { tenantId?: string; projectId?: string; limit?: number }) {

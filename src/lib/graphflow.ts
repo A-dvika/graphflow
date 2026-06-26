@@ -41,17 +41,39 @@ export const initialStatuses = Object.fromEntries(
 
 export function findCriticalPath(nodes = releaseNodes, edges = releaseEdges) {
   const byId = new Map(nodes.map((node) => [node.id, node]));
+  const outgoing = new Map(nodes.map((node) => [node.id, [] as string[]]));
   const incoming = new Map(nodes.map((node) => [node.id, [] as string[]]));
 
   for (const edge of edges) {
+    outgoing.get(edge.from)?.push(edge.to);
     incoming.get(edge.to)?.push(edge.from);
   }
 
+  const indegree = new Map(nodes.map((node) => [node.id, incoming.get(node.id)?.length ?? 0]));
+  const queue = nodes.filter((node) => indegree.get(node.id) === 0).map((node) => node.id);
+  const topologicalOrder: string[] = [];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    topologicalOrder.push(current);
+
+    for (const child of outgoing.get(current) ?? []) {
+      const nextDegree = (indegree.get(child) ?? 0) - 1;
+      indegree.set(child, nextDegree);
+
+      if (nextDegree === 0) {
+        queue.push(child);
+      }
+    }
+  }
+
+  const orderedNodeIds = topologicalOrder.length === nodes.length ? topologicalOrder : nodes.map((node) => node.id);
   const score = new Map<string, number>();
   const previous = new Map<string, string>();
 
-  for (const node of nodes) {
-    const parents = incoming.get(node.id) ?? [];
+  for (const nodeId of orderedNodeIds) {
+    const node = byId.get(nodeId)!;
+    const parents = incoming.get(nodeId) ?? [];
     const bestParent = parents
       .map((parentId) => ({
         id: parentId,
@@ -60,10 +82,10 @@ export function findCriticalPath(nodes = releaseNodes, edges = releaseEdges) {
       .sort((a, b) => b.score - a.score)[0];
 
     if (bestParent) {
-      score.set(node.id, bestParent.score + node.duration);
-      previous.set(node.id, bestParent.id);
+      score.set(nodeId, bestParent.score + node.duration);
+      previous.set(nodeId, bestParent.id);
     } else {
-      score.set(node.id, node.duration);
+      score.set(nodeId, node.duration);
     }
   }
 

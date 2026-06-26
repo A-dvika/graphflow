@@ -4,6 +4,7 @@ stages:
   - test
   - security
   - report
+  - release_gate
 
 variables:
   GRAPHFLOW_PROJECT_ID: "$CI_PROJECT_PATH_SLUG"
@@ -74,3 +75,11 @@ graphflow_report_failure:
           \"status\": \"failed\",
           \"message\": \"GitLab security scan failed. GraphFlow should block downstream release steps.\"
         }"
+
+graphflow_release_gate:
+  stage: release_gate
+  image: curlimages/curl:latest
+  script:
+    - |
+      curl -sSf "$GRAPHFLOW_INGEST_URL/api/runs/gitlab_$CI_PIPELINE_ID/gate?projectId=$GRAPHFLOW_PROJECT_ID&failOn=FAIL" \
+        -H "Authorization: Bearer $GRAPHFLOW_INGEST_TOKEN"

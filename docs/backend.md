@@ -6,6 +6,7 @@ GraphFlow backend now has four responsibilities:
 2. Accept CI/CD status updates through an ingest API.
 3. Register workflow graph configs for project onboarding.
 4. Run deterministic graph analysis for blockers, downstream impact, and critical path.
+5. Evaluate release gates that GitLab can require before deployment.
 
 ## Runtime Environment
 
@@ -122,6 +123,29 @@ Example payload:
 
 If a node is ingested as `failed`, GraphFlow writes downstream nodes as `blocked`.
 
+Evaluate a release gate:
+
+```text
+GET /api/runs/<runId>/gate?projectId=<projectId>&failOn=FAIL
+```
+
+The route returns HTTP `200` when the release can continue and HTTP `409` when GraphFlow decides
+the release should be blocked. GitLab can call this in a required job before production deploy.
+
+Example response:
+
+```json
+{
+  "ok": false,
+  "gate": {
+    "verdict": "FAIL",
+    "shouldBlock": true,
+    "summary": "Release gate failed. Production should not continue.",
+    "blastRadius": ["approval", "staging", "smoke", "prod"]
+  }
+}
+```
+
 If `GRAPHFLOW_INGEST_TOKEN` is configured, external ingest endpoints require:
 
 ```text
@@ -166,7 +190,8 @@ graphflow_report:
 ```
 
 For the hackathon, this proves the onboarding model: teams keep their existing CI/CD and add a
-GraphFlow reporting stage.
+GraphFlow reporting stage plus a release gate job. In a real rollout, the release gate job becomes a
+protected required stage before production deployment.
 
 See:
 
