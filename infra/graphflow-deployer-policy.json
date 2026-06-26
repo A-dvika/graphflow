@@ -74,6 +74,19 @@
       "Resource": "*"
     },
     {
+      "Sid": "UseGraphFlowAuroraKmsKeys",
+      "Effect": "Allow",
+      "Action": [
+        "kms:CreateGrant",
+        "kms:Decrypt",
+        "kms:DescribeKey",
+        "kms:Encrypt",
+        "kms:GenerateDataKey",
+        "kms:ListAliases"
+      ],
+      "Resource": "*"
+    },
+    {
       "Sid": "ManageGraphFlowIamRole",
       "Effect": "Allow",
       "Action": [
