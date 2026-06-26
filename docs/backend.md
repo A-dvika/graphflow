@@ -7,6 +7,7 @@ GraphFlow backend now has four responsibilities:
 3. Register workflow graph configs for project onboarding.
 4. Run deterministic graph analysis for blockers, downstream impact, and critical path.
 5. Evaluate release gates that GitLab can require before deployment.
+6. Generate optional agentic release explanations through a swappable LLM provider.
 
 ## Runtime Environment
 
@@ -27,6 +28,11 @@ GRAPHFLOW_RUN_RETENTION_DAYS=30
 AURORA_CLUSTER_ARN=<Aurora cluster ARN>
 AURORA_SECRET_ARN=<Aurora managed secret ARN>
 AURORA_DATABASE_NAME=graphflow
+GRAPHFLOW_AGENT_PROVIDER=none
+GRAPHFLOW_LLM_ENDPOINT=<optional Gemma/OpenAI-compatible/Ollama endpoint>
+GRAPHFLOW_LLM_MODEL=gemma
+GRAPHFLOW_LLM_API_KEY=<optional provider key>
+GRAPHFLOW_LLM_TIMEOUT_MS=7000
 ```
 
 Do not commit these values.
@@ -34,6 +40,11 @@ Do not commit these values.
 `DATABASE_URL` and `DATABASE_POOL_MAX` are still supported for local/direct PostgreSQL access, but
 the recommended deployed path is the RDS Data API variables above. That lets Vercel read the private
 Aurora graph without opening database network access.
+
+The agent layer is optional. Use `GRAPHFLOW_AGENT_PROVIDER=none` for deterministic-only behavior.
+For the MVP, `gemma-http` can point at a free Gemma-compatible hosted endpoint, while `ollama` can
+point at a local/self-hosted Gemma runtime. Later, the same interface can point at a paid managed
+endpoint without changing the release gate contract.
 
 ## API Routes
 
@@ -144,6 +155,25 @@ Example response:
     "blastRadius": ["approval", "staging", "smoke", "prod"]
   }
 }
+```
+
+Generate an agentic release explanation:
+
+```text
+GET /api/runs/<runId>/agent?projectId=<projectId>&failOn=FAIL
+```
+
+This route uses the same deterministic gate decision, then asks the configured model for a concise
+explanation and next-action list. If no model is configured, the model times out, or the response is
+not valid JSON, GraphFlow returns a deterministic fallback insight. The release gate itself should
+stay deterministic and fast; model calls are explanation/advisory only.
+
+Agent providers:
+
+```text
+GRAPHFLOW_AGENT_PROVIDER=none        # default deterministic fallback
+GRAPHFLOW_AGENT_PROVIDER=gemma-http  # OpenAI-compatible or generic hosted Gemma HTTP endpoint
+GRAPHFLOW_AGENT_PROVIDER=ollama      # self-hosted/local Ollama Gemma endpoint
 ```
 
 If `GRAPHFLOW_INGEST_TOKEN` is configured, external ingest endpoints require:

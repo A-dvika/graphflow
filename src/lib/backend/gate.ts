@@ -28,6 +28,17 @@ export type GateDecision = {
 
 const requiredNodeTypes: FlowNode["type"][] = ["quality", "security", "approval", "deploy"];
 
+export function graphNodesForGate(nodes: Array<Partial<FlowNode> & Pick<FlowNode, "id" | "label">>): FlowNode[] {
+  return nodes.map((node, index) => ({
+    id: node.id,
+    label: node.label,
+    type: node.type ?? "compute",
+    duration: node.duration ?? 1,
+    x: node.x ?? index * 10,
+    y: node.y ?? 50,
+  }));
+}
+
 function unique(values: string[]) {
   return [...new Set(values)];
 }

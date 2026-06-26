@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { generateReleaseInsight } from "@/lib/agent/release-agent";
 import { getRunFromDynamoDB } from "@/lib/aws/dynamodb";
 import { getWorkflowConfig } from "@/lib/aws/workflows";
 import { requireIngestAuth } from "@/lib/backend/auth";
@@ -29,23 +30,29 @@ export async function GET(request: Request, context: { params: Promise<{ runId: 
     getWorkflowConfig(identity),
   ]);
   const graphNodes = graphNodesForGate(workflow.nodes);
-  const decision = evaluateReleaseGate({
+  const gate = evaluateReleaseGate({
     nodes: graphNodes,
     edges: workflow.edges,
     statuses: run.statuses,
     failOn: parseFailOn(url.searchParams.get("failOn")),
   });
+  const insight = await generateReleaseInsight({
+    runId: identity.runId,
+    workflowId: identity.workflowId,
+    nodes: graphNodes,
+    edges: workflow.edges,
+    statuses: run.statuses,
+    gate,
+  });
 
-  return NextResponse.json(
-    {
-      ok: !decision.shouldBlock,
-      ...identity,
-      gate: decision,
-      sources: {
-        run: run.source,
-        workflow: workflow.source,
-      },
+  return NextResponse.json({
+    ok: true,
+    ...identity,
+    gate,
+    insight,
+    sources: {
+      run: run.source,
+      workflow: workflow.source,
     },
-    { status: decision.shouldBlock ? 409 : 200 },
-  );
+  });
 }
