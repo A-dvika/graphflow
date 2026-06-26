@@ -8,7 +8,7 @@ import { evaluateReleaseGate, graphNodesForGate } from "@/lib/backend/gate";
 import { buildRunIdentity } from "@/lib/backend/model";
 
 export async function GET(request: Request, context: { params: Promise<{ runId: string }> }) {
-  const authError = requireIngestAuth(request);
+  const authError = await requireIngestAuth(request);
   if (authError) {
     return authError;
   }

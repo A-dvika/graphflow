@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { dashboardUrl, graphflowContext, graphflowFetch } from "./client.mjs";
+import { dashboardUrl, graphflowContext, graphflowFetch, tokenFingerprint } from "./client.mjs";
 
 const scenario = process.argv[2] ?? "security-failure";
 const slow = process.argv.includes("--slow");
@@ -23,7 +23,8 @@ async function registerWorkflow() {
   });
 
   if (!response.ok) {
-    throw new Error(`Workflow registration failed: ${JSON.stringify(body)}`);
+    const fingerprint = await tokenFingerprint(context.token);
+    throw new Error(`Workflow registration failed: ${JSON.stringify(body)}\nLocal token fingerprint: ${fingerprint}`);
   }
 
   console.log("registered workflow graph");
@@ -49,7 +50,8 @@ async function report(nodeId, status, message) {
   });
 
   if (!response.ok) {
-    throw new Error(`Node report failed for ${nodeId}: ${JSON.stringify(body)}`);
+    const fingerprint = await tokenFingerprint(context.token);
+    throw new Error(`Node report failed for ${nodeId}: ${JSON.stringify(body)}\nLocal token fingerprint: ${fingerprint}`);
   }
 
   console.log(`${nodeId.padEnd(16)} ${status.padEnd(8)} ${message}`);

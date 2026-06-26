@@ -16,7 +16,7 @@ export async function GET(request: Request, context: { params: Promise<{ policyI
 }
 
 export async function PUT(request: Request, context: { params: Promise<{ policyId: string }> }) {
-  const authError = requireIngestAuth(request);
+  const authError = await requireIngestAuth(request);
   if (authError) {
     return authError;
   }

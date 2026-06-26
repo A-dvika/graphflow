@@ -1,5 +1,14 @@
 const localRunId = `local_checkout_${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}`;
 
+export async function tokenFingerprint(token) {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token ?? ""));
+
+  return [...new Uint8Array(bytes)]
+    .slice(0, 6)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export function graphflowContext() {
   const baseUrl = process.env.GRAPHFLOW_URL ?? process.env.GRAPHFLOW_INGEST_URL;
 
