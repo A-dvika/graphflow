@@ -14,7 +14,7 @@ import {
   type RunAction,
   type RunIdentity,
 } from "@/lib/backend/model";
-import { analyzeRun, downstreamOf, initialStatuses, releaseNodes, type Status } from "@/lib/graphflow";
+import { analyzeRun, downstreamOf, initialStatuses, releaseNodes, type FlowEdge, type Status } from "@/lib/graphflow";
 
 type RunItem = {
   pk: string;
@@ -482,6 +482,7 @@ export async function putRunNodeState(input: {
   message: string;
   actor?: string;
   metadata?: Record<string, unknown>;
+  edges?: FlowEdge[];
 }) {
   if (!hasAwsConfig()) {
     return { source: "demo-fallback" as const };
@@ -542,12 +543,13 @@ export async function ingestNodeState(input: {
   message: string;
   actor?: string;
   metadata?: Record<string, unknown>;
+  edges?: FlowEdge[];
 }) {
   const write = await putRunNodeState(input);
 
   if (input.status === "failed") {
     await Promise.all(
-      [...downstreamOf(input.nodeId)].map((blockedNodeId) =>
+      [...downstreamOf(input.nodeId, input.edges)].map((blockedNodeId) =>
         putRunNodeState({
           identity: input.identity,
           nodeId: blockedNodeId,

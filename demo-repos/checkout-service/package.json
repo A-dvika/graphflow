@@ -16,6 +16,10 @@
     "deploy:staging": "node scripts/deploy.mjs staging",
     "deploy:canary": "node scripts/deploy.mjs canary",
     "deploy:prod": "node scripts/deploy.mjs production",
-    "smoke": "node scripts/smoke-test.mjs"
+    "smoke": "node scripts/smoke-test.mjs",
+    "graphflow:demo:fail-security": "node graphflow/demo-pipeline.mjs security-failure --slow",
+    "graphflow:demo:fail-migration": "node graphflow/demo-pipeline.mjs migration-failure --slow",
+    "graphflow:demo:waiting": "node graphflow/demo-pipeline.mjs waiting-approval --slow",
+    "graphflow:demo:success": "node graphflow/demo-pipeline.mjs success --slow"
   }
 }

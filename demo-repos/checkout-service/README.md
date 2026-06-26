@@ -47,6 +47,28 @@ The dashboard URL shape is:
 https://your-graphflow-deployment.example/?projectId=<project>&workflowId=checkout-release-v1&runId=gitlab_<pipeline>
 ```
 
+## Instant Live Demo Without Waiting For GitLab
+
+You can simulate the same pipeline against the deployed GraphFlow API from this repo. This creates
+real backend data through the same register, ingest, gate, and compliance endpoints used by GitLab.
+
+```bash
+export GRAPHFLOW_URL=https://your-graphflow-deployment.example
+export GRAPHFLOW_INGEST_TOKEN=<masked GraphFlow ingest token>
+npm run graphflow:demo:fail-security
+```
+
+Scenarios:
+
+```bash
+npm run graphflow:demo:fail-security
+npm run graphflow:demo:fail-migration
+npm run graphflow:demo:waiting
+npm run graphflow:demo:success
+```
+
+Each command prints a GraphFlow dashboard URL for that exact run.
+
 ## Local Checks
 
 ```bash

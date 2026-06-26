@@ -25,3 +25,16 @@ DEMO_SECURITY_FAILURE=true
 ```
 
 The `graphflow_register` job prints the exact GraphFlow dashboard URL for that pipeline run.
+
+## Faster Presenter Demo
+
+Before or during the presentation, you can generate a live GraphFlow run without waiting for GitLab:
+
+```bash
+export GRAPHFLOW_URL=https://your-graphflow-deployment.example
+export GRAPHFLOW_INGEST_TOKEN=<masked GraphFlow ingest token>
+npm run graphflow:demo:fail-security
+```
+
+This still writes real data to GraphFlow through the same API contract. It is useful if GitLab
+runners are slow or queued.
