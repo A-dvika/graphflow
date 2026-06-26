@@ -1,7 +1,15 @@
 "use client";
 
 import { useMemo } from "react";
-import { AlertCircle, CheckCircle2, Clock, GitBranch, Lock, RadioTower } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  GitBranch,
+  Lock,
+  RadioTower,
+} from "lucide-react";
 import { type FlowEdge, type FlowNode, type Status } from "@/lib/graphflow";
 
 type ReleaseFlowGraphProps = {
@@ -14,19 +22,23 @@ type ReleaseFlowGraphProps = {
   onSelectNode?: (nodeId: string) => void;
 };
 
-type PositionedNode = FlowNode & {
-  column: number;
-  x: number;
-  y: number;
+type Stage = {
+  id: number;
+  label: string;
+  nodes: FlowNode[];
 };
 
-const CARD_WIDTH = 176;
-const CARD_HEIGHT = 108;
-const COLUMN_GAP = 240;
-const ROW_GAP = 136;
-const PADDING_X = 44;
-const PADDING_TOP = 72;
-const PADDING_BOTTOM = 40;
+type NodeMeta = {
+  incoming: FlowEdge[];
+  outgoing: FlowEdge[];
+  stage: number;
+};
+
+type ReleaseMap = {
+  byId: Map<string, FlowNode>;
+  meta: Map<string, NodeMeta>;
+  stages: Stage[];
+};
 
 const statusConfig: Record<
   Status,
@@ -36,7 +48,6 @@ const statusConfig: Record<
     bg: string;
     text: string;
     icon: typeof Clock;
-    edge: string;
   }
 > = {
   pending: {
@@ -45,7 +56,6 @@ const statusConfig: Record<
     bg: "bg-[var(--status-neutral)]/10",
     text: "text-[var(--foreground-secondary)]",
     icon: Clock,
-    edge: "var(--border)",
   },
   running: {
     label: "Running",
@@ -53,7 +63,6 @@ const statusConfig: Record<
     bg: "bg-[var(--status-pending)]/10",
     text: "text-[var(--status-pending)]",
     icon: RadioTower,
-    edge: "var(--status-pending)",
   },
   success: {
     label: "Passed",
@@ -61,7 +70,6 @@ const statusConfig: Record<
     bg: "bg-[var(--status-success)]/10",
     text: "text-[var(--status-success)]",
     icon: CheckCircle2,
-    edge: "var(--status-success)",
   },
   failed: {
     label: "Failed",
@@ -69,7 +77,6 @@ const statusConfig: Record<
     bg: "bg-[var(--status-error)]/10",
     text: "text-[var(--status-error)]",
     icon: AlertCircle,
-    edge: "var(--status-error)",
   },
   blocked: {
     label: "Blocked",
@@ -77,7 +84,6 @@ const statusConfig: Record<
     bg: "bg-[var(--status-warning)]/10",
     text: "text-[var(--status-warning)]",
     icon: Lock,
-    edge: "var(--status-warning)",
   },
   waiting: {
     label: "Waiting",
@@ -85,7 +91,6 @@ const statusConfig: Record<
     bg: "bg-[var(--status-warning)]/10",
     text: "text-[var(--status-warning)]",
     icon: Clock,
-    edge: "var(--status-warning)",
   },
 };
 
@@ -106,96 +111,86 @@ function stageLabel(nodes: FlowNode[]) {
 
   if (types.has("approval")) return "Approval";
   if (types.has("deploy")) return "Deploy";
-  if (types.has("security")) return "Risk";
-  if (types.has("quality")) return "Validate";
+  if (types.has("security")) return "Risk checks";
+  if (types.has("quality")) return "Validation";
   return "Build";
 }
 
-function buildGraphLayout(nodes: FlowNode[], edges: FlowEdge[]) {
+function buildReleaseMap(nodes: FlowNode[], edges: FlowEdge[]): ReleaseMap {
   const byId = new Map(nodes.map((node) => [node.id, node]));
-  const incoming = new Map(nodes.map((node) => [node.id, [] as string[]]));
-  const outgoing = new Map(nodes.map((node) => [node.id, [] as string[]]));
+  const validEdges = edges.filter((edge) => byId.has(edge.from) && byId.has(edge.to));
+  const incoming = new Map(nodes.map((node) => [node.id, [] as FlowEdge[]]));
+  const outgoing = new Map(nodes.map((node) => [node.id, [] as FlowEdge[]]));
 
-  for (const edge of edges) {
-    if (!byId.has(edge.from) || !byId.has(edge.to)) {
-      continue;
-    }
-
-    outgoing.get(edge.from)?.push(edge.to);
-    incoming.get(edge.to)?.push(edge.from);
+  for (const edge of validEdges) {
+    outgoing.get(edge.from)?.push(edge);
+    incoming.get(edge.to)?.push(edge);
   }
 
   const indegree = new Map(nodes.map((node) => [node.id, incoming.get(node.id)?.length ?? 0]));
-  const level = new Map(nodes.map((node) => [node.id, 0]));
+  const levels = new Map(nodes.map((node) => [node.id, 0]));
   const queue = nodes.filter((node) => indegree.get(node.id) === 0).map((node) => node.id);
-  const visited: string[] = [];
+  const visited = new Set<string>();
 
   while (queue.length > 0) {
     const current = queue.shift()!;
-    visited.push(current);
+    visited.add(current);
 
-    for (const child of outgoing.get(current) ?? []) {
-      level.set(child, Math.max(level.get(child) ?? 0, (level.get(current) ?? 0) + 1));
-      const nextDegree = (indegree.get(child) ?? 0) - 1;
-      indegree.set(child, nextDegree);
+    for (const edge of outgoing.get(current) ?? []) {
+      levels.set(edge.to, Math.max(levels.get(edge.to) ?? 0, (levels.get(current) ?? 0) + 1));
+      const nextDegree = (indegree.get(edge.to) ?? 0) - 1;
+      indegree.set(edge.to, nextDegree);
 
       if (nextDegree === 0) {
-        queue.push(child);
+        queue.push(edge.to);
       }
     }
   }
 
-  if (visited.length !== nodes.length) {
-    nodes.forEach((node, index) => {
-      if (!visited.includes(node.id)) {
-        level.set(node.id, Math.floor(index / 2));
-      }
-    });
-  }
+  nodes.forEach((node, index) => {
+    if (!visited.has(node.id)) {
+      levels.set(node.id, Math.floor(index / 2));
+    }
+  });
 
-  const columnIndexes = [...new Set(nodes.map((node) => level.get(node.id) ?? 0))].sort((a, b) => a - b);
-  const columns = columnIndexes.map((item) =>
-    nodes
-      .filter((node) => (level.get(node.id) ?? 0) === item)
-      .sort((a, b) => a.y - b.y || a.x - b.x || a.label.localeCompare(b.label)),
-  );
-  const maxRows = Math.max(1, ...columns.map((column) => column.length));
-  const width = Math.max(900, PADDING_X * 2 + CARD_WIDTH + Math.max(0, columns.length - 1) * COLUMN_GAP);
-  const height = Math.max(420, PADDING_TOP + PADDING_BOTTOM + CARD_HEIGHT + Math.max(0, maxRows - 1) * ROW_GAP);
-  const positions = new Map<string, PositionedNode>();
+  const stageNumbers = [...new Set(nodes.map((node) => levels.get(node.id) ?? 0))].sort((a, b) => a - b);
+  const stages = stageNumbers.map((stage) => {
+    const stageNodes = nodes
+      .filter((node) => (levels.get(node.id) ?? 0) === stage)
+      .sort((a, b) => a.y - b.y || a.x - b.x || a.label.localeCompare(b.label));
 
-  columns.forEach((column, columnIndex) => {
-    const columnHeight = CARD_HEIGHT + Math.max(0, column.length - 1) * ROW_GAP;
-    const availableHeight = height - PADDING_TOP - PADDING_BOTTOM;
-    const offsetY = Math.max(0, (availableHeight - columnHeight) / 2);
+    return {
+      id: stage,
+      label: stageLabel(stageNodes),
+      nodes: stageNodes,
+    };
+  });
+  const stageByOriginalLevel = new Map(stageNumbers.map((stage, index) => [stage, index]));
+  const meta = new Map<string, NodeMeta>();
 
-    column.forEach((node, rowIndex) => {
-      positions.set(node.id, {
-        ...node,
-        column: columnIndex,
-        x: PADDING_X + columnIndex * COLUMN_GAP,
-        y: PADDING_TOP + offsetY + rowIndex * ROW_GAP,
-      });
+  nodes.forEach((node) => {
+    meta.set(node.id, {
+      incoming: incoming.get(node.id) ?? [],
+      outgoing: outgoing.get(node.id) ?? [],
+      stage: stageByOriginalLevel.get(levels.get(node.id) ?? 0) ?? 0,
     });
   });
 
-  return {
-    columns,
-    height,
-    positions,
-    width,
-  };
+  return { byId, meta, stages };
 }
 
-function edgePath(from: PositionedNode, to: PositionedNode) {
-  const startX = from.x + CARD_WIDTH;
-  const startY = from.y + CARD_HEIGHT / 2;
-  const endX = to.x;
-  const endY = to.y + CARD_HEIGHT / 2;
-  const distance = Math.max(72, endX - startX);
-  const curve = Math.min(120, distance * 0.5);
+function bridgeEdges(map: ReleaseMap, stageIndex: number) {
+  return [...map.meta.entries()]
+    .flatMap(([, meta]) => meta.outgoing)
+    .filter((edge) => {
+      const fromStage = map.meta.get(edge.from)?.stage ?? 0;
+      const toStage = map.meta.get(edge.to)?.stage ?? 0;
+      return fromStage <= stageIndex && toStage > stageIndex;
+    });
+}
 
-  return `M ${startX} ${startY} C ${startX + curve} ${startY}, ${endX - curve} ${endY}, ${endX} ${endY}`;
+function uniqueEdges(edges: FlowEdge[]) {
+  return [...new Map(edges.map((edge) => [edgeKey(edge), edge])).values()];
 }
 
 export function ReleaseFlowGraph({
@@ -207,15 +202,9 @@ export function ReleaseFlowGraph({
   selectedNodeId,
   onSelectNode,
 }: ReleaseFlowGraphProps) {
-  const layout = useMemo(() => buildGraphLayout(nodes, edges), [nodes, edges]);
-  const byId = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
-  const selectedNode = selectedNodeId ? byId.get(selectedNodeId) : null;
-  const selectedDependencies = selectedNode
-    ? {
-        incoming: edges.filter((edge) => edge.to === selectedNode.id).length,
-        outgoing: edges.filter((edge) => edge.from === selectedNode.id).length,
-      }
-    : null;
+  const releaseMap = useMemo(() => buildReleaseMap(nodes, edges), [nodes, edges]);
+  const selectedNode = selectedNodeId ? releaseMap.byId.get(selectedNodeId) : null;
+  const selectedMeta = selectedNode ? releaseMap.meta.get(selectedNode.id) : null;
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
@@ -224,7 +213,7 @@ export function ReleaseFlowGraph({
           <div>
             <h3 className="text-lg font-semibold text-[var(--foreground)]">Release Dependency Graph</h3>
             <p className="text-sm text-[var(--foreground-secondary)]">
-              A staged view of the live release graph, gate impact, and dependency flow.
+              Pipeline stages, dependency bridges, and release-gate impact in one readable map.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
@@ -240,144 +229,141 @@ export function ReleaseFlowGraph({
           </div>
         </div>
 
-        <div className="mb-3 flex flex-wrap gap-3 text-xs text-[var(--foreground-secondary)]">
-          <span className="inline-flex items-center gap-2">
-            <span className="h-0.5 w-8 rounded bg-[var(--status-pending)]" />
-            Critical path
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <span className="h-0.5 w-8 rounded bg-[var(--status-warning)]" />
-            Blocked impact
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <span className="h-0.5 w-8 rounded bg-[var(--border)]" />
-            Dependency
-          </span>
-        </div>
-
-        <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--background)]">
-          <div
-            className="relative"
-            style={{
-              height: layout.height,
-              minWidth: layout.width,
-            }}
-          >
-            <div className="absolute inset-0">
-              {layout.columns.map((column, index) => (
-                <div
-                  key={`${index}-${column.map((node) => node.id).join("-")}`}
-                  className="absolute top-0 h-full border-l border-[var(--border)]/60"
-                  style={{ left: PADDING_X + index * COLUMN_GAP - 22 }}
-                >
-                  <div className="ml-3 mt-4 text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
-                    {stageLabel(column)}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <svg
-              aria-hidden="true"
-              className="absolute inset-0 z-0"
-              height={layout.height}
-              viewBox={`0 0 ${layout.width} ${layout.height}`}
-              width={layout.width}
-            >
-              <defs>
-                <marker id="graph-arrow-readable" markerHeight="8" markerWidth="8" orient="auto" refX="7" refY="4">
-                  <path d="M0,0 L8,4 L0,8 Z" fill="context-stroke" />
-                </marker>
-              </defs>
-              {edges.map((edge) => {
-                const from = layout.positions.get(edge.from);
-                const to = layout.positions.get(edge.to);
-
-                if (!from || !to) {
-                  return null;
-                }
-
-                const critical = edgeInPath(edge, criticalPath);
-                const impacted = blastRadius.includes(edge.to);
-                const fromStatus = statuses[edge.from] ?? "pending";
-                const stroke = critical
-                  ? "var(--status-pending)"
-                  : impacted
-                    ? "var(--status-warning)"
-                    : statusConfig[fromStatus].edge;
-
-                return (
-                  <path
-                    key={edgeKey(edge)}
-                    d={edgePath(from, to)}
-                    fill="none"
-                    markerEnd="url(#graph-arrow-readable)"
-                    opacity={critical || impacted ? 0.92 : 0.45}
-                    stroke={stroke}
-                    strokeDasharray={critical ? undefined : impacted ? "7 7" : undefined}
-                    strokeLinecap="round"
-                    strokeWidth={critical ? 3.5 : impacted ? 2.5 : 1.4}
-                  />
-                );
-              })}
-            </svg>
-
-            {nodes.map((node) => {
-              const position = layout.positions.get(node.id);
-
-              if (!position) {
-                return null;
-              }
-
-              const status = statuses[node.id] ?? "pending";
-              const config = statusConfig[status];
-              const Icon = config.icon;
-              const critical = criticalPath.includes(node.id);
-              const impacted = blastRadius.includes(node.id);
-              const selected = selectedNodeId === node.id;
+        <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
+              Critical path
+            </span>
+            {criticalPath.map((nodeId, index) => {
+              const node = releaseMap.byId.get(nodeId);
+              if (!node) return null;
 
               return (
-                <button
-                  key={node.id}
-                  onClick={() => onSelectNode?.(node.id)}
-                  className={`absolute z-10 rounded-lg border p-3 text-left shadow-sm transition hover:border-[var(--status-pending)] hover:shadow-md ${config.border} ${config.bg} ${
-                    selected ? "ring-2 ring-[var(--status-pending)]" : ""
-                  } ${critical ? "shadow-[0_0_0_1px_var(--status-pending)]" : ""}`}
-                  style={{
-                    height: CARD_HEIGHT,
-                    left: position.x,
-                    top: position.y,
-                    width: CARD_WIDTH,
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <Icon className={`h-4 w-4 shrink-0 ${config.text}`} />
-                    <span className={`truncate text-[10px] font-semibold uppercase ${config.text}`}>
-                      {config.label}
-                    </span>
-                  </div>
-                  <div className="mt-2 line-clamp-2 min-h-9 text-sm font-semibold leading-tight text-[var(--foreground)]">
+                <span key={`${nodeId}-${index}`} className="inline-flex items-center gap-2">
+                  {index > 0 && <ArrowRight className="h-3.5 w-3.5 text-[var(--foreground-secondary)]" />}
+                  <button
+                    onClick={() => onSelectNode?.(node.id)}
+                    className="rounded border border-[var(--status-pending)]/50 bg-[var(--status-pending)]/10 px-2 py-1 text-[var(--status-pending)] transition hover:bg-[var(--status-pending)]/15"
+                  >
                     {node.label}
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
+          <div className="flex min-w-max items-stretch gap-3">
+            {releaseMap.stages.map((stage, stageIndex) => {
+              const dependencies = uniqueEdges(bridgeEdges(releaseMap, stageIndex));
+
+              return (
+                <div key={stage.id} className="flex items-stretch gap-3">
+                  <div className="w-64 shrink-0 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
+                          Stage {stageIndex + 1}
+                        </p>
+                        <h4 className="mt-1 text-sm font-semibold text-[var(--foreground)]">{stage.label}</h4>
+                      </div>
+                      <span className="rounded border border-[var(--border)] px-2 py-1 text-[10px] text-[var(--foreground-secondary)]">
+                        {stage.nodes.length}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {stage.nodes.map((node) => {
+                        const status = statuses[node.id] ?? "pending";
+                        const config = statusConfig[status];
+                        const Icon = config.icon;
+                        const critical = criticalPath.includes(node.id);
+                        const impacted = blastRadius.includes(node.id);
+                        const selected = selectedNodeId === node.id;
+                        const meta = releaseMap.meta.get(node.id);
+
+                        return (
+                          <button
+                            key={node.id}
+                            onClick={() => onSelectNode?.(node.id)}
+                            className={`w-full rounded-lg border p-3 text-left transition hover:border-[var(--status-pending)] ${config.border} ${config.bg} ${
+                              selected ? "ring-2 ring-[var(--status-pending)]" : ""
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <Icon className={`h-4 w-4 shrink-0 ${config.text}`} />
+                                  <span className={`text-[10px] font-semibold uppercase ${config.text}`}>
+                                    {config.label}
+                                  </span>
+                                </div>
+                                <p className="mt-2 line-clamp-2 text-sm font-semibold leading-tight text-[var(--foreground)]">
+                                  {node.label}
+                                </p>
+                              </div>
+                              <span className="shrink-0 text-[10px] text-[var(--foreground-secondary)]">
+                                {node.duration}m
+                              </span>
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                              <span className="rounded bg-[var(--background)] px-1.5 py-0.5 text-[10px] text-[var(--foreground-secondary)]">
+                                {nodeTypeLabel(node.type)}
+                              </span>
+                              {critical && (
+                                <span className="rounded bg-[var(--status-pending)]/15 px-1.5 py-0.5 text-[10px] text-[var(--status-pending)]">
+                                  Critical
+                                </span>
+                              )}
+                              {impacted && (
+                                <span className="rounded bg-[var(--status-warning)]/15 px-1.5 py-0.5 text-[10px] text-[var(--status-warning)]">
+                                  Impacted
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="mt-3 flex items-center justify-between border-t border-[var(--border)] pt-2 text-[10px] text-[var(--foreground-secondary)]">
+                              <span>{meta?.incoming.length ?? 0} in</span>
+                              <span>{meta?.outgoing.length ?? 0} out</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-[var(--foreground-secondary)]">
-                    <span className="truncate">{nodeTypeLabel(node.type)}</span>
-                    <span className="shrink-0">{node.duration}m</span>
-                  </div>
-                  {(critical || impacted) && (
-                    <div className="mt-2 flex gap-1">
-                      {critical && (
-                        <span className="rounded bg-[var(--status-pending)]/15 px-1.5 py-0.5 text-[10px] text-[var(--status-pending)]">
-                          Critical
-                        </span>
-                      )}
-                      {impacted && (
-                        <span className="rounded bg-[var(--status-warning)]/15 px-1.5 py-0.5 text-[10px] text-[var(--status-warning)]">
-                          Impact
-                        </span>
-                      )}
+
+                  {stageIndex < releaseMap.stages.length - 1 && (
+                    <div className="flex w-28 shrink-0 flex-col items-center justify-center gap-2">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)]">
+                        <ArrowRight className="h-4 w-4 text-[var(--status-pending)]" />
+                      </div>
+                      <div className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 text-center">
+                        <p className="text-lg font-semibold text-[var(--foreground)]">{dependencies.length}</p>
+                        <p className="text-[10px] uppercase text-[var(--foreground-secondary)]">links</p>
+                      </div>
+                      <div className="w-full space-y-1">
+                        {dependencies.slice(0, 3).map((edge) => {
+                          const critical = edgeInPath(edge, criticalPath);
+                          const impacted = blastRadius.includes(edge.to);
+                          return (
+                            <div
+                              key={edgeKey(edge)}
+                              className={`h-1.5 rounded-full ${
+                                critical
+                                  ? "bg-[var(--status-pending)]"
+                                  : impacted
+                                    ? "bg-[var(--status-warning)]"
+                                    : "bg-[var(--border)]"
+                              }`}
+                            />
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
@@ -389,7 +375,7 @@ export function ReleaseFlowGraph({
           <GitBranch className="h-4 w-4 text-[var(--status-pending)]" />
           Selected Node
         </div>
-        {selectedNode ? (
+        {selectedNode && selectedMeta ? (
           <div className="mt-4 space-y-4">
             <div>
               <p className="text-xs uppercase tracking-wide text-[var(--foreground-secondary)]">Node</p>
@@ -412,13 +398,35 @@ export function ReleaseFlowGraph({
               </div>
               <div className="flex justify-between border-b border-[var(--border)] pb-2">
                 <dt className="text-[var(--foreground-secondary)]">Depends on</dt>
-                <dd className="text-[var(--foreground)]">{selectedDependencies?.incoming ?? 0}</dd>
+                <dd className="text-[var(--foreground)]">{selectedMeta.incoming.length}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-[var(--foreground-secondary)]">Unlocks</dt>
-                <dd className="text-[var(--foreground)]">{selectedDependencies?.outgoing ?? 0}</dd>
+                <dd className="text-[var(--foreground)]">{selectedMeta.outgoing.length}</dd>
               </div>
             </dl>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
+                Downstream
+              </p>
+              {selectedMeta.outgoing.length > 0 ? (
+                selectedMeta.outgoing.map((edge) => (
+                  <button
+                    key={edgeKey(edge)}
+                    onClick={() => onSelectNode?.(edge.to)}
+                    className="flex w-full items-center justify-between gap-2 rounded border border-[var(--border)] bg-[var(--background)] px-2 py-2 text-left text-xs text-[var(--foreground)] transition hover:border-[var(--status-pending)]"
+                  >
+                    <span className="truncate">{releaseMap.byId.get(edge.to)?.label ?? edge.to}</span>
+                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[var(--foreground-secondary)]" />
+                  </button>
+                ))
+              ) : (
+                <p className="rounded border border-[var(--border)] bg-[var(--background)] px-2 py-2 text-xs text-[var(--foreground-secondary)]">
+                  Final graph node.
+                </p>
+              )}
+            </div>
           </div>
         ) : (
           <p className="mt-4 text-sm text-[var(--foreground-secondary)]">
