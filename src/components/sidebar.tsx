@@ -4,13 +4,13 @@ import React from "react";
 
 export function Sidebar() {
   const navItems = [
-    { name: "Overview", href: "#", icon: "OV", active: true },
-    { name: "Releases", href: "#", icon: "RL" },
-    { name: "Deployments", href: "#", icon: "DP" },
-    { name: "Quality Gates", href: "#", icon: "QG" },
-    { name: "Analytics", href: "#", icon: "AN" },
-    { name: "Logs", href: "#", icon: "LG" },
-    { name: "Settings", href: "#", icon: "ST" },
+    { name: "Overview", href: "#", icon: "📊", active: true },
+    { name: "Releases", href: "#", icon: "🚀" },
+    { name: "Deployments", href: "#", icon: "⚙️" },
+    { name: "Quality Gates", href: "#", icon: "🔒" },
+    { name: "Analytics", href: "#", icon: "📈" },
+    { name: "Logs", href: "#", icon: "📝" },
+    { name: "Settings", href: "#", icon: "⚡" },
   ];
 
   return (
@@ -40,9 +40,7 @@ export function Sidebar() {
                 : "text-[var(--foreground-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--surface-alt)]"
             }`}
           >
-            <span className="w-6 rounded border border-[var(--border)] py-0.5 text-center text-[10px] font-semibold">
-              {item.icon}
-            </span>
+            <span className="text-base">{item.icon}</span>
             <span>{item.name}</span>
           </a>
         ))}

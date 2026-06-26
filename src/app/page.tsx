@@ -1,37 +1,30 @@
 "use client";
 
-import { Sidebar } from "@/components/sidebar";
-import { Header } from "@/components/header";
-import { QualityGatesDashboard } from "@/components/quality-gates-dashboard";
+import { AppSidebar } from "@/components/app-sidebar";
+import { AppHeader } from "@/components/app-header";
+import { Dashboard } from "@/components/dashboard";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen bg-[var(--background)]">
+    <div className="flex h-screen bg-[var(--background)]">
       {/* Sidebar */}
-      <Sidebar />
+      <AppSidebar />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <Header
-          title="Release Overview"
-          subtitle="Monitor and manage your release quality gates and deployments"
-          actions={
-            <div className="flex items-center gap-3">
-              <button className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors">
-                Refresh
-              </button>
-              <button className="px-4 py-2 rounded-lg bg-[var(--status-pending)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity">
-                New Release
-              </button>
-            </div>
-          }
-        />
+        <AppHeader />
 
         {/* Page Content */}
         <div className="flex-1 overflow-auto">
           <div className="p-8">
-            <QualityGatesDashboard />
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-[var(--foreground)]">Release Overview</h1>
+              <p className="text-[var(--foreground-secondary)] mt-2">
+                Monitor and manage your deployment pipeline with real-time quality gate validation
+              </p>
+            </div>
+            <Dashboard />
           </div>
         </div>
       </div>

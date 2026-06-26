@@ -48,18 +48,16 @@ export function QualityGatesDashboard() {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: "Active Releases", value: "3", icon: "AR", color: "pending" },
-          { label: "Deployments Today", value: "12", icon: "DT", color: "success" },
-          { label: "Failed Gates", value: "1", icon: "FG", color: "warning" },
-          { label: "Quality Score", value: "94%", icon: "QS", color: "success" },
+          { label: "Active Releases", value: "3", icon: "🚀", color: "pending" },
+          { label: "Deployments Today", value: "12", icon: "✅", color: "success" },
+          { label: "Failed Gates", value: "1", icon: "⚠️", color: "warning" },
+          { label: "Quality Score", value: "94%", icon: "📊", color: "success" },
         ].map((stat) => (
           <div key={stat.label} className="bg-[var(--surface-alt)] border border-[var(--border)] rounded-lg p-4">
             <p className="text-sm text-[var(--foreground-secondary)] mb-2">{stat.label}</p>
             <div className="flex items-end justify-between">
               <p className="text-2xl font-bold text-[var(--foreground)]">{stat.value}</p>
-              <span className="rounded-md border border-[var(--border)] px-2 py-1 text-xs font-semibold text-[var(--foreground-secondary)]">
-                {stat.icon}
-              </span>
+              <span className="text-2xl">{stat.icon}</span>
             </div>
           </div>
         ))}
