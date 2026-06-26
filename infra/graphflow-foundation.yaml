@@ -1,0 +1,124 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: GraphFlow hackathon foundation resources.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: graphflow
+  RunsTableName:
+    Type: String
+    Default: GraphFlowRuns
+  EventBusName:
+    Type: String
+    Default: graphflow-events
+
+Resources:
+  RunsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref RunsTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: gsi1pk
+          AttributeType: S
+        - AttributeName: gsi1sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: gsi1
+          KeySchema:
+            - AttributeName: gsi1pk
+              KeyType: HASH
+            - AttributeName: gsi1sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  GraphFlowEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Ref EventBusName
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  NodeRunnerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-node-runner-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub "${ProjectName}-node-runner-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource: !GetAtt RunsTable.Arn
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource: !GetAtt GraphFlowEventBus.Arn
+
+  NodeRunnerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-node-runner"
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !GetAtt NodeRunnerRole.Arn
+      Timeout: 15
+      Environment:
+        Variables:
+          RUNS_TABLE_NAME: !Ref RunsTable
+          EVENT_BUS_NAME: !Ref GraphFlowEventBus
+      Code:
+        ZipFile: |
+          exports.handler = async (event) => {
+            const runId = event.runId || `run_${Date.now()}`;
+            const nodeId = event.nodeId || "build";
+            return {
+              ok: true,
+              runId,
+              nodeId,
+              status: "succeeded",
+              detailType: "node.succeeded",
+              message: "GraphFlow demo node runner executed."
+            };
+          };
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+Outputs:
+  RunsTableName:
+    Value: !Ref RunsTable
+  EventBusName:
+    Value: !Ref GraphFlowEventBus
+  NodeRunnerFunctionName:
+    Value: !Ref NodeRunnerFunction

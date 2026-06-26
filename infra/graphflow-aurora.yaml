@@ -1,0 +1,56 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Optional GraphFlow Aurora PostgreSQL graph storage.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: graphflow
+  DatabaseName:
+    Type: String
+    Default: graphflow
+  MinCapacity:
+    Type: Number
+    Default: 1
+  MaxCapacity:
+    Type: Number
+    Default: 2
+
+Resources:
+  GraphDatabaseCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      DBClusterIdentifier: !Sub "${ProjectName}-aurora"
+      Engine: aurora-postgresql
+      EngineMode: provisioned
+      DatabaseName: !Ref DatabaseName
+      MasterUsername: graphflowadmin
+      ManageMasterUserPassword: true
+      EnableHttpEndpoint: true
+      ServerlessV2ScalingConfiguration:
+        MinCapacity: !Ref MinCapacity
+        MaxCapacity: !Ref MaxCapacity
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  GraphDatabaseInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub "${ProjectName}-aurora-instance-1"
+      DBClusterIdentifier: !Ref GraphDatabaseCluster
+      Engine: aurora-postgresql
+      DBInstanceClass: db.serverless
+      PubliclyAccessible: false
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+Outputs:
+  ClusterArn:
+    Value: !Sub "arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:${GraphDatabaseCluster}"
+  ClusterEndpoint:
+    Value: !GetAtt GraphDatabaseCluster.Endpoint.Address
+  DatabaseName:
+    Value: !Ref DatabaseName
+  SecretArn:
+    Value: !GetAtt GraphDatabaseCluster.MasterUserSecret.SecretArn
