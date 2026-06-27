@@ -582,12 +582,12 @@ export function Dashboard({ section }: DashboardProps) {
           <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-[var(--foreground-secondary)]">Storage sources</p>
-                <p className="mt-1 text-sm font-semibold text-[var(--foreground)]">
-                  {formatSource(overview.sources.workflow)} / {formatSource(overview.sources.run)}
+                <p className="text-sm text-[var(--foreground-secondary)]">CI gate behavior</p>
+                <p className={`mt-1 text-sm font-semibold ${overview.gate.shouldBlock ? "text-[var(--status-error)]" : "text-[var(--status-success)]"}`}>
+                  {overview.gate.shouldBlock ? "Blocks production deploy" : "Allows release to continue"}
                 </p>
               </div>
-              <GitCommit className="h-5 w-5 text-[var(--status-pending)]" />
+              <GitCommit className={`h-5 w-5 ${overview.gate.shouldBlock ? "text-[var(--status-error)]" : "text-[var(--status-success)]"}`} />
             </div>
           </div>
         </section>

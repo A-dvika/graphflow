@@ -52,6 +52,8 @@ type ReleaseMap = {
   width: number;
 };
 
+type GraphViewMode = "impact" | "full";
+
 const CARD_WIDTH = 220;
 const CARD_HEIGHT = 138;
 const COLUMN_STEP = 330;
@@ -250,6 +252,22 @@ function edgePath(edge: FlowEdge, map: ReleaseMap, edgeIndex: number) {
   return `M ${startX} ${startY} L ${busX} ${startY} L ${busX} ${endY} L ${endX} ${endY}`;
 }
 
+function connectedNodeIds(edges: FlowEdge[], nodeIds: string[]) {
+  const focused = new Set(nodeIds);
+
+  for (const edge of edges) {
+    if (focused.has(edge.from)) {
+      focused.add(edge.to);
+    }
+
+    if (focused.has(edge.to)) {
+      focused.add(edge.from);
+    }
+  }
+
+  return focused;
+}
+
 export function ReleaseFlowGraph({
   nodes,
   edges,
@@ -261,12 +279,54 @@ export function ReleaseFlowGraph({
   isExpandedView = false,
 }: ReleaseFlowGraphProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const releaseMap = useMemo(() => buildReleaseMap(nodes, edges), [nodes, edges]);
-  const selectedNode = selectedNodeId ? releaseMap.byId.get(selectedNodeId) : null;
+  const [viewMode, setViewMode] = useState<GraphViewMode>("impact");
+  const statusBuckets = useMemo(
+    () => ({
+      failed: nodes.filter((node) => statuses[node.id] === "failed"),
+      blocked: nodes.filter((node) => statuses[node.id] === "blocked"),
+      waiting: nodes.filter((node) => statuses[node.id] === "waiting"),
+    }),
+    [nodes, statuses],
+  );
+  const canUseImpactView = statusBuckets.failed.length + statusBuckets.blocked.length + statusBuckets.waiting.length + blastRadius.length > 0;
+  const activeViewMode = canUseImpactView ? viewMode : "full";
+  const visibleNodeIds = useMemo(() => {
+    if (activeViewMode === "full") {
+      return new Set(nodes.map((node) => node.id));
+    }
+
+    const focusSeeds = [
+      ...statusBuckets.failed,
+      ...statusBuckets.blocked,
+      ...statusBuckets.waiting,
+      ...nodes.filter((node) => blastRadius.includes(node.id)),
+      ...nodes.filter((node) => criticalPath.includes(node.id)),
+    ].map((node) => node.id);
+
+    return connectedNodeIds(edges, focusSeeds);
+  }, [activeViewMode, blastRadius, criticalPath, edges, nodes, statusBuckets]);
+  const visibleNodes = useMemo(() => nodes.filter((node) => visibleNodeIds.has(node.id)), [nodes, visibleNodeIds]);
+  const visibleEdges = useMemo(
+    () => edges.filter((edge) => visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to)),
+    [edges, visibleNodeIds],
+  );
+  const releaseMap = useMemo(() => buildReleaseMap(visibleNodes, visibleEdges), [visibleNodes, visibleEdges]);
+  const fallbackSelectedNodeId =
+    statusBuckets.failed[0]?.id ??
+    statusBuckets.blocked[0]?.id ??
+    statusBuckets.waiting[0]?.id ??
+    criticalPath[criticalPath.length - 1] ??
+    visibleNodes[0]?.id ??
+    null;
+  const activeSelectedNodeId =
+    selectedNodeId && visibleNodeIds.has(selectedNodeId) ? selectedNodeId : fallbackSelectedNodeId;
+  const selectedNode = activeSelectedNodeId ? releaseMap.byId.get(activeSelectedNodeId) : null;
   const selectedMeta = selectedNode ? releaseMap.meta.get(selectedNode.id) : null;
-  const criticalEdges = edges.filter((edge) => edgeInPath(edge, criticalPath)).length;
+  const criticalEdges = visibleEdges.filter((edge) => edgeInPath(edge, criticalPath)).length;
   const markerId = isExpandedView ? "release-graph-arrow-expanded" : "release-graph-arrow";
   const graphHeight = isExpandedView ? Math.max(releaseMap.height, 680) : releaseMap.height;
+  const hiddenNodeCount = Math.max(0, nodes.length - visibleNodes.length);
+  const primaryProblem = statusBuckets.failed[0] ?? statusBuckets.blocked[0] ?? statusBuckets.waiting[0] ?? null;
   const containerClass = isExpandedView
     ? "grid h-full min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]"
     : "grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]";
@@ -291,16 +351,41 @@ export function ReleaseFlowGraph({
               A stage-aligned dependency map with critical route and blocked impact highlighted.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded border border-[var(--border)] px-2 py-1 text-[var(--foreground-secondary)]">
-              {nodes.length} nodes
+              {visibleNodes.length}/{nodes.length} nodes
             </span>
             <span className="rounded border border-[var(--border)] px-2 py-1 text-[var(--foreground-secondary)]">
-              {edges.length} links
+              {visibleEdges.length} links
             </span>
             <span className="rounded border border-[var(--status-pending)] px-2 py-1 text-[var(--status-pending)]">
               Critical route: {criticalEdges} links
             </span>
+            <div className="inline-flex overflow-hidden rounded border border-[var(--border)]">
+              <button
+                onClick={() => setViewMode("impact")}
+                className={`px-2 py-1 transition ${
+                  activeViewMode === "impact"
+                    ? "bg-[var(--status-pending)] text-[var(--background)]"
+                    : "text-[var(--foreground-secondary)] hover:text-[var(--foreground)]"
+                } ${!canUseImpactView ? "cursor-not-allowed opacity-50" : ""}`}
+                disabled={!canUseImpactView}
+                type="button"
+              >
+                Impact
+              </button>
+              <button
+                onClick={() => setViewMode("full")}
+                className={`border-l border-[var(--border)] px-2 py-1 transition ${
+                  activeViewMode === "full"
+                    ? "bg-[var(--status-pending)] text-[var(--background)]"
+                    : "text-[var(--foreground-secondary)] hover:text-[var(--foreground)]"
+                }`}
+                type="button"
+              >
+                Full
+              </button>
+            </div>
             {!isExpandedView && (
               <button
                 onClick={() => setIsExpanded(true)}
@@ -314,13 +399,47 @@ export function ReleaseFlowGraph({
           </div>
         </div>
 
+        <div className="mb-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
+              Current focus
+            </p>
+            <p className="mt-2 truncate text-sm font-semibold text-[var(--foreground)]">
+              {primaryProblem?.label ?? "No active blocker"}
+            </p>
+            <p className={`mt-1 text-xs ${primaryProblem ? statusConfig[statuses[primaryProblem.id] ?? "pending"].text : "text-[var(--status-success)]"}`}>
+              {primaryProblem ? statusConfig[statuses[primaryProblem.id] ?? "pending"].label : "Release path is clear"}
+            </p>
+          </div>
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
+              Downstream impact
+            </p>
+            <p className="mt-2 text-sm font-semibold text-[var(--foreground)]">{blastRadius.length} impacted nodes</p>
+            <p className="mt-1 text-xs text-[var(--foreground-secondary)]">
+              {statusBuckets.blocked.length} blocked, {statusBuckets.waiting.length} waiting
+            </p>
+          </div>
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
+              View scope
+            </p>
+            <p className="mt-2 text-sm font-semibold text-[var(--foreground)]">
+              {activeViewMode === "impact" ? "Impact view" : "Full topology"}
+            </p>
+            <p className="mt-1 text-xs text-[var(--foreground-secondary)]">
+              {hiddenNodeCount > 0 ? `${hiddenNodeCount} healthy side checks hidden` : "All graph nodes visible"}
+            </p>
+          </div>
+        </div>
+
         <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_260px]">
           <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
                 Critical route
               </span>
-              {criticalPath.map((nodeId, index) => {
+              {criticalPath.filter((nodeId) => visibleNodeIds.has(nodeId)).map((nodeId, index) => {
                 const node = releaseMap.byId.get(nodeId);
                 if (!node) return null;
 
@@ -398,7 +517,7 @@ export function ReleaseFlowGraph({
                   <path d="M0,0 L8,4 L0,8 Z" fill="context-stroke" />
                 </marker>
               </defs>
-              {edges.map((edge, index) => {
+              {visibleEdges.map((edge, index) => {
                 const path = edgePath(edge, releaseMap, index);
 
                 if (!path) {
@@ -408,7 +527,7 @@ export function ReleaseFlowGraph({
                 const fromStatus = statuses[edge.from] ?? "pending";
                 const critical = edgeInPath(edge, criticalPath);
                 const impacted = blastRadius.includes(edge.to);
-                const touched = selectedTouches(edge, selectedNodeId);
+                const touched = selectedTouches(edge, activeSelectedNodeId);
                 const stroke = critical
                   ? "var(--status-pending)"
                   : impacted
@@ -421,7 +540,7 @@ export function ReleaseFlowGraph({
                     d={path}
                     fill="none"
                     markerEnd={`url(#${markerId})`}
-                    opacity={selectedNodeId ? (touched ? 1 : 0.18) : critical || impacted ? 0.92 : 0.42}
+                    opacity={activeSelectedNodeId ? (touched ? 1 : 0.18) : critical || impacted ? 0.92 : 0.42}
                     stroke={stroke}
                     strokeDasharray={critical ? undefined : impacted ? "7 7" : undefined}
                     strokeLinecap="round"
@@ -432,7 +551,7 @@ export function ReleaseFlowGraph({
               })}
             </svg>
 
-            {nodes.map((node) => {
+            {visibleNodes.map((node) => {
               const positioned = releaseMap.byId.get(node.id);
 
               if (!positioned) {
@@ -444,12 +563,12 @@ export function ReleaseFlowGraph({
               const Icon = config.icon;
               const critical = criticalPath.includes(node.id);
               const impacted = blastRadius.includes(node.id);
-              const selected = selectedNodeId === node.id;
+              const selected = activeSelectedNodeId === node.id;
               const connectedToSelected = Boolean(
                 selectedMeta?.incoming.some((edge) => edge.from === node.id) ||
                   selectedMeta?.outgoing.some((edge) => edge.to === node.id),
               );
-              const dimmed = Boolean(selectedNodeId && !selected && !connectedToSelected);
+              const dimmed = Boolean(activeSelectedNodeId && !selected && !connectedToSelected);
               const meta = releaseMap.meta.get(node.id);
 
               return (
