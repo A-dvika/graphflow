@@ -415,7 +415,11 @@ export function ReleaseFlowGraph({
               const critical = criticalPath.includes(node.id);
               const impacted = blastRadius.includes(node.id);
               const selected = selectedNodeId === node.id;
-              const dimmed = Boolean(selectedNodeId && !selected && !(selectedMeta?.incoming.some((edge) => edge.from === node.id) || selectedMeta?.outgoing.some((edge) => edge.to === node.id)));
+              const connectedToSelected = Boolean(
+                selectedMeta?.incoming.some((edge) => edge.from === node.id) ||
+                  selectedMeta?.outgoing.some((edge) => edge.to === node.id),
+              );
+              const dimmed = Boolean(selectedNodeId && !selected && !connectedToSelected);
               const meta = releaseMap.meta.get(node.id);
 
               return (
