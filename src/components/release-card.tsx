@@ -35,6 +35,7 @@ export function ReleaseCard({
   checksTotal,
 }: ReleaseCardProps) {
   const config = statusConfig[status];
+  const boundedProgress = Math.max(0, Math.min(progress, 100));
 
   return (
     <div className="bg-[var(--surface-alt)] border border-[var(--border)] rounded-lg p-6 hover:border-[var(--foreground-secondary)] transition-colors">
@@ -62,6 +63,19 @@ export function ReleaseCard({
 
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
+          <p className="text-xs text-[var(--foreground-secondary)] uppercase tracking-wide">Release Progress</p>
+          <p className="text-xs font-medium text-[var(--foreground-secondary)]">{boundedProgress}%</p>
+        </div>
+        <div className="w-full bg-[var(--surface)] rounded-full h-2 overflow-hidden">
+          <div
+            className="h-full bg-[var(--status-pending)] transition-all duration-300"
+            style={{ width: `${boundedProgress}%` }}
+          ></div>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
           <p className="text-xs text-[var(--foreground-secondary)] uppercase tracking-wide">Quality Gates</p>
           <p className="text-xs font-medium text-[var(--foreground-secondary)]">
             {checksPass}/{checksTotal}
@@ -81,9 +95,10 @@ export function ReleaseCard({
           <p className="mt-1">{timestamp}</p>
         </div>
         <button className="px-3 py-1.5 rounded text-sm font-medium text-[var(--status-pending)] hover:bg-[var(--surface)] transition-colors">
-          View Details →
+          View Details -&gt;
         </button>
       </div>
     </div>
   );
 }
+

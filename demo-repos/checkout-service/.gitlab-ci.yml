@@ -1,0 +1,166 @@
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+stages:
+  - graphflow
+  - build
+  - test
+  - security
+  - database
+  - approval
+  - deploy
+  - validate
+  - gate
+  - production
+
+default:
+  image: node:20-alpine
+  cache:
+    key: "$CI_COMMIT_REF_SLUG"
+    paths:
+      - .npm/
+
+variables:
+  NODE_ENV: "test"
+  GRAPHFLOW_TENANT_ID: "demo"
+  GRAPHFLOW_PROJECT_ID: "$CI_PROJECT_PATH_SLUG"
+  GRAPHFLOW_WORKFLOW_ID: "checkout-release-v1"
+  GRAPHFLOW_RUN_ID: "gitlab_$CI_PIPELINE_ID"
+
+.graphflow_reported_job:
+  before_script:
+    - node graphflow/report-node.mjs "$GRAPHFLOW_NODE_ID" running "$CI_JOB_NAME started"
+  after_script:
+    - node graphflow/report-node.mjs "$GRAPHFLOW_NODE_ID" "$CI_JOB_STATUS" "$CI_JOB_NAME finished with $CI_JOB_STATUS"
+
+graphflow_register:
+  stage: graphflow
+  script:
+    - node graphflow/register-workflow.mjs
+
+build_app:
+  extends: .graphflow_reported_job
+  stage: build
+  variables:
+    GRAPHFLOW_NODE_ID: "build"
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npm run build
+
+unit_tests:
+  extends: .graphflow_reported_job
+  stage: test
+  needs: ["build_app"]
+  variables:
+    GRAPHFLOW_NODE_ID: "unit"
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npm test
+
+integration_tests:
+  extends: .graphflow_reported_job
+  stage: test
+  needs: ["build_app"]
+  variables:
+    GRAPHFLOW_NODE_ID: "integration"
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npm run test:integration
+
+dependency_scan:
+  extends: .graphflow_reported_job
+  stage: security
+  needs: ["build_app"]
+  variables:
+    GRAPHFLOW_NODE_ID: "dependency_scan"
+  script:
+    - npm run security:deps
+
+static_risk_scan:
+  extends: .graphflow_reported_job
+  stage: security
+  needs: ["build_app"]
+  variables:
+    GRAPHFLOW_NODE_ID: "static_scan"
+  script:
+    - npm run security:static
+
+migration_review:
+  extends: .graphflow_reported_job
+  stage: database
+  needs: ["unit_tests", "integration_tests"]
+  variables:
+    GRAPHFLOW_NODE_ID: "migration_check"
+  script:
+    - npm run migration:check
+
+approval_waiting:
+  stage: approval
+  needs: ["dependency_scan", "static_risk_scan", "migration_review"]
+  script:
+    - node graphflow/report-node.mjs approval waiting "Production approval is waiting for release manager review"
+
+production_approval:
+  extends: .graphflow_reported_job
+  stage: approval
+  needs: ["approval_waiting"]
+  when: manual
+  allow_failure: false
+  variables:
+    GRAPHFLOW_NODE_ID: "approval"
+  script:
+    - node graphflow/report-node.mjs approval success "Production approval granted by $GITLAB_USER_LOGIN"
+
+deploy_staging:
+  extends: .graphflow_reported_job
+  stage: deploy
+  needs: ["production_approval"]
+  variables:
+    GRAPHFLOW_NODE_ID: "staging"
+  script:
+    - npm run deploy:staging
+
+smoke_tests:
+  extends: .graphflow_reported_job
+  stage: validate
+  needs: ["deploy_staging"]
+  variables:
+    GRAPHFLOW_NODE_ID: "smoke"
+  script:
+    - npm run smoke
+
+canary_deploy:
+  extends: .graphflow_reported_job
+  stage: validate
+  needs: ["smoke_tests"]
+  variables:
+    GRAPHFLOW_NODE_ID: "canary"
+  script:
+    - npm run deploy:canary
+
+graphflow_release_gate:
+  stage: gate
+  needs:
+    - job: dependency_scan
+      optional: true
+    - job: static_risk_scan
+      optional: true
+    - job: migration_review
+      optional: true
+    - job: canary_deploy
+      optional: true
+  when: always
+  script:
+    - node graphflow/release-gate.mjs
+
+deploy_production:
+  extends: .graphflow_reported_job
+  stage: production
+  needs: ["graphflow_release_gate"]
+  variables:
+    GRAPHFLOW_NODE_ID: "prod"
+  script:
+    - npm run deploy:prod

@@ -1,6 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge";
 import { DynamoDBDocumentClient, PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { writeAuditEventToAurora } from "@/lib/aws/aurora";
 import {
   buildRunIdentity,
   defaultRunId,
@@ -13,7 +14,7 @@ import {
   type RunAction,
   type RunIdentity,
 } from "@/lib/backend/model";
-import { analyzeRun, downstreamOf, initialStatuses, releaseNodes, type Status } from "@/lib/graphflow";
+import { analyzeRun, downstreamOf, initialStatuses, releaseNodes, type FlowEdge, type Status } from "@/lib/graphflow";
 
 type RunItem = {
   pk: string;
@@ -115,7 +116,7 @@ function materializeRun(items: RunItem[], fallbackRunId: string, source: Release
   const nodeOrder = new Map(releaseNodes.map((node, index) => [node.id, index]));
 
   for (const item of items) {
-    if (item.nodeId && releaseNodes.some((node) => node.id === item.nodeId)) {
+    if (item.nodeId) {
       statuses[item.nodeId] = normalizeStatus(item.status);
     }
   }
@@ -126,7 +127,15 @@ function materializeRun(items: RunItem[], fallbackRunId: string, source: Release
 
   items
     .filter((item) => item.message && item.nodeId)
-    .sort((a, b) => (nodeOrder.get(a.nodeId ?? "") ?? 99) - (nodeOrder.get(b.nodeId ?? "") ?? 99))
+    .sort((a, b) => {
+      const orderDelta = (nodeOrder.get(a.nodeId ?? "") ?? 99) - (nodeOrder.get(b.nodeId ?? "") ?? 99);
+
+      if (orderDelta !== 0) {
+        return orderDelta;
+      }
+
+      return String(a.updatedAt ?? "").localeCompare(String(b.updatedAt ?? ""));
+    })
     .forEach((item) => events.push(item.message!));
 
   return {
@@ -371,6 +380,7 @@ export async function putRunSnapshot(input: {
   messages: Partial<Record<string, string>>;
   metaMessage: string;
   detailType: string;
+  actor?: string;
 }) {
   const run: ReleaseRun = {
     ...input.identity,
@@ -450,6 +460,17 @@ export async function putRunSnapshot(input: {
       analysis: run.analysis,
     },
   });
+  await writeAuditEventToAurora({
+    identity: input.identity,
+    eventType: input.detailType,
+    actor: input.actor,
+    message: input.metaMessage,
+    metadata: {
+      statuses: input.statuses,
+      analysis: run.analysis,
+      source: "snapshot",
+    },
+  });
 
   return run;
 }
@@ -459,6 +480,9 @@ export async function putRunNodeState(input: {
   nodeId: string;
   status: Status;
   message: string;
+  actor?: string;
+  metadata?: Record<string, unknown>;
+  edges?: FlowEdge[];
 }) {
   if (!hasAwsConfig()) {
     return { source: "demo-fallback" as const };
@@ -496,6 +520,18 @@ export async function putRunNodeState(input: {
       message: input.message,
     },
   });
+  await writeAuditEventToAurora({
+    identity: input.identity,
+    eventType: `node.${input.status}`,
+    actor: input.actor,
+    nodeId: input.nodeId,
+    status: input.status,
+    message: input.message,
+    metadata: {
+      ...input.metadata,
+      source: "ingest",
+    },
+  });
 
   return { source: "dynamodb" as const };
 }
@@ -505,17 +541,25 @@ export async function ingestNodeState(input: {
   nodeId: string;
   status: Status;
   message: string;
+  actor?: string;
+  metadata?: Record<string, unknown>;
+  edges?: FlowEdge[];
 }) {
   const write = await putRunNodeState(input);
 
   if (input.status === "failed") {
     await Promise.all(
-      [...downstreamOf(input.nodeId)].map((blockedNodeId) =>
+      [...downstreamOf(input.nodeId, input.edges)].map((blockedNodeId) =>
         putRunNodeState({
           identity: input.identity,
           nodeId: blockedNodeId,
           status: "blocked",
           message: `Blocked by failed upstream node: ${input.nodeId}.`,
+          actor: input.actor,
+          metadata: {
+            ...input.metadata,
+            blockedBy: input.nodeId,
+          },
         }),
       ),
     );

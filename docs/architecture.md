@@ -2,6 +2,19 @@
 
 GraphFlow is scoped as a release intelligence app for engineering teams.
 
+Open the editable multi-page draw.io diagram:
+
+```text
+docs/architecture.drawio
+```
+
+Pages included:
+
+- Product Context
+- Runtime Architecture
+- Live Demo Flow
+- Data Model And Evidence
+
 ```mermaid
 flowchart LR
   user[Release Manager] --> vercel[Vercel / Next.js UI]

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRunFromDynamoDB } from "@/lib/aws/dynamodb";
+import { getReleasePolicy } from "@/lib/aws/policies";
 import { getWorkflowConfig } from "@/lib/aws/workflows";
 import { requireIngestAuth } from "@/lib/backend/auth";
 import { evaluateReleaseGate, graphNodesForGate, type GateVerdict } from "@/lib/backend/gate";
@@ -10,7 +11,7 @@ function parseFailOn(value: string | null): GateVerdict {
 }
 
 export async function GET(request: Request, context: { params: Promise<{ runId: string }> }) {
-  const authError = requireIngestAuth(request);
+  const authError = await requireIngestAuth(request);
   if (authError) {
     return authError;
   }
@@ -24,9 +25,10 @@ export async function GET(request: Request, context: { params: Promise<{ runId: 
     workflowId: url.searchParams.get("workflowId") ?? undefined,
     runId,
   });
-  const [run, workflow] = await Promise.all([
+  const [run, workflow, policy] = await Promise.all([
     getRunFromDynamoDB(identity),
     getWorkflowConfig(identity),
+    getReleasePolicy({ tenantId: identity.tenantId }),
   ]);
   const graphNodes = graphNodesForGate(workflow.nodes);
   const decision = evaluateReleaseGate({
@@ -34,6 +36,7 @@ export async function GET(request: Request, context: { params: Promise<{ runId: 
     edges: workflow.edges,
     statuses: run.statuses,
     failOn: parseFailOn(url.searchParams.get("failOn")),
+    policy,
   });
 
   return NextResponse.json(
@@ -41,6 +44,7 @@ export async function GET(request: Request, context: { params: Promise<{ runId: 
       ok: !decision.shouldBlock,
       ...identity,
       gate: decision,
+      policy,
       sources: {
         run: run.source,
         workflow: workflow.source,

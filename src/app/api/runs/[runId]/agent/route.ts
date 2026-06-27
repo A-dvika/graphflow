@@ -11,7 +11,7 @@ function parseFailOn(value: string | null): GateVerdict {
 }
 
 export async function GET(request: Request, context: { params: Promise<{ runId: string }> }) {
-  const authError = requireIngestAuth(request);
+  const authError = await requireIngestAuth(request);
   if (authError) {
     return authError;
   }

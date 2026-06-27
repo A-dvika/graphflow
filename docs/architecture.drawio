@@ -1,0 +1,307 @@
+<mxfile host="app.diagrams.net" modified="2026-06-26T15:05:00.000Z" agent="GraphFlow" version="24.7.17" type="device">
+  <diagram id="context" name="1. Product Context">
+    <mxGraphModel dx="1600" dy="980" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="c-title" value="GraphFlow Product Context&#xa;Release safety graph on top of existing CI/CD" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=28;fontStyle=1;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="50" y="30" width="860" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c-subtitle" value="GraphFlow does not replace CI/CD. It ingests pipeline events, evaluates release-flow risk, and returns production gate decisions with audit evidence." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#cbd5e1;fontSize=14;fontColor=#334155;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="50" y="100" width="1460" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c-team" value="Engineering teams&#xa;Developers, QA, release managers, platform engineers" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontSize=14;fontStyle=1;fontColor=#1e3a8a;" vertex="1" parent="1">
+          <mxGeometry x="80" y="300" width="190" height="160" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c-cicd" value="Existing CI/CD&#xa;GitLab now&#xa;GitHub Actions, Jenkins, CircleCI later&#xa;&#xa;Runs jobs and deployments" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffedd5;strokeColor=#f97316;fontSize=14;fontColor=#7c2d12;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="360" y="240" width="250" height="160" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c-demo" value="Checkout service demo repo&#xa;Realistic sample pipeline&#xa;&#xa;Build, tests, security, migration, approval, staging, smoke, canary, prod" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=14;fontColor=#78350f;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="360" y="450" width="250" height="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c-graphflow" value="GraphFlow&#xa;Release intelligence control plane&#xa;&#xa;Turns CI events into graph decisions: PASS, WARN, FAIL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontSize=17;fontStyle=1;fontColor=#14532d;spacing=16;" vertex="1" parent="1">
+          <mxGeometry x="720" y="310" width="300" height="190" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c-aws" value="AWS data plane&#xa;Aurora PostgreSQL&#xa;DynamoDB&#xa;EventBridge&#xa;Lambda foundation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#ea580c;fontSize=14;fontColor=#7c2d12;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="230" width="260" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c-evidence" value="Release evidence outputs&#xa;Dashboard&#xa;Gate response HTTP 200 / 409&#xa;Compliance export&#xa;Audit timeline" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef2f2;strokeColor=#dc2626;fontSize=14;fontColor=#7f1d1d;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="440" width="260" height="160" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c-positioning" value="Positioning&#xa;&#xa;SonarQube checks code quality.&#xa;Snyk checks dependency/security risk.&#xa;GraphFlow checks release-flow risk." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#64748b;fontSize=15;fontColor=#334155;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="180" y="750" width="1240" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c-e1" value="views release state" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#2563eb;fontColor=#1e3a8a;endArrow=block;endFill=1;" edge="1" parent="1" source="c-team" target="c-graphflow">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c-e2" value="runs pipeline jobs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#f97316;fontColor=#7c2d12;endArrow=block;endFill=1;" edge="1" parent="1" source="c-team" target="c-cicd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c-e3" value="reports job events and calls gate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#16a34a;fontColor=#14532d;endArrow=block;endFill=1;" edge="1" parent="1" source="c-cicd" target="c-graphflow">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c-e4" value="same API contract as GitLab" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d97706;fontColor=#78350f;endArrow=block;endFill=1;" edge="1" parent="1" source="c-demo" target="c-graphflow">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c-e5" value="stores graph, state, evidence" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#ea580c;fontColor=#7c2d12;endArrow=block;endFill=1;" edge="1" parent="1" source="c-graphflow" target="c-aws">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c-e6" value="returns release safety evidence" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#dc2626;fontColor=#7f1d1d;endArrow=block;endFill=1;" edge="1" parent="1" source="c-graphflow" target="c-evidence">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="runtime" name="2. Runtime Architecture">
+    <mxGraphModel dx="1700" dy="1050" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1050" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="r-title" value="GraphFlow Runtime Architecture&#xa;Current deployed MVP plus event-driven foundation" style="text;html=1;strokeColor=none;fillColor=none;align=left;whiteSpace=wrap;fontSize=27;fontStyle=1;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="50" y="28" width="900" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r-legend" value="Solid arrows = implemented flow&#xa;Dashed arrows = foundation or roadmap extension" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#cbd5e1;fontSize=13;fontColor=#334155;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="28" width="390" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r-ext" value="External producers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef6ff;strokeColor=#93c5fd;dashed=1;fontSize=15;fontStyle=1;fontColor=#1e3a8a;verticalAlign=top;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="130" width="300" height="680" as="geometry" />
+        </mxCell>
+        <mxCell id="r-vercel" value="Vercel deployment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#94a3b8;dashed=1;fontSize=15;fontStyle=1;fontColor=#0f172a;verticalAlign=top;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="390" y="130" width="520" height="680" as="geometry" />
+        </mxCell>
+        <mxCell id="r-aws" value="AWS data and event plane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#fdba74;dashed=1;fontSize=15;fontStyle=1;fontColor=#7c2d12;verticalAlign=top;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="960" y="130" width="650" height="680" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r-gitlab" value="GitLab CI/CD&#xa;build, unit, integration, security, migration, approval, deploy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffedd5;strokeColor=#f97316;fontSize=13;fontColor=#7c2d12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="200" width="220" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="r-demo" value="Live demo runner&#xa;demo-pipeline.mjs&#xa;Creates real backend runs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=13;fontColor=#78350f;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="355" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="r-users" value="Browser users&#xa;Release manager&#xa;Platform engineer&#xa;Auditor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontSize=13;fontColor=#1e3a8a;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="520" width="220" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r-ui" value="Next.js UI&#xa;Command center&#xa;Releases, Deployments, Gates, Analytics, Logs, Settings, Docs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontSize=13;fontStyle=1;fontColor=#0c4a6e;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="440" y="180" width="210" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="r-api-dashboard" value="Dashboard APIs&#xa;/overview&#xa;/projects/{projectId}/runs&#xa;/system/health" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfeff;strokeColor=#0891b2;fontSize=12;fontColor=#164e63;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="680" y="180" width="180" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="r-api-ingest" value="Ingest APIs&#xa;/workflows/register&#xa;/ingest/gitlab&#xa;/runs/{runId}/actions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;fontSize=12;fontColor=#14532d;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="440" y="355" width="180" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="r-api-gate" value="Safety APIs&#xa;/runs/{runId}/gate&#xa;/runs/{runId}/compliance&#xa;/policies/{policyId}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef2f2;strokeColor=#dc2626;fontSize=12;fontColor=#7f1d1d;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="680" y="355" width="180" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="r-core" value="Core release engine&#xa;&#xa;Identity normalization&#xa;Graph algorithms&#xa;Policy-aware gate&#xa;Migration risk&#xa;Agent insight fallback&#xa;Auth diagnostics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;fontSize=13;fontStyle=1;fontColor=#334155;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="500" y="550" width="300" height="190" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r-aurora" value="Aurora PostgreSQL&#xa;Graph source of truth&#xa;&#xa;workflows&#xa;workflow_nodes&#xa;workflow_edges&#xa;release_audit_events&#xa;release_audit_summary" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fef3c7;strokeColor=#d97706;fontSize=12;fontColor=#78350f;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="190" width="220" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="r-dynamo" value="DynamoDB GraphFlowRuns&#xa;Write-heavy runtime state&#xa;&#xa;META item&#xa;NODE#{nodeId} items&#xa;Recent-run GSI&#xa;Policy storage fallback" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#e0f2fe;strokeColor=#0284c7;fontSize=12;fontColor=#0c4a6e;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="190" width="220" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="r-eventbridge" value="EventBridge&#xa;graphflow-events&#xa;node/run events" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffedd5;strokeColor=#f97316;fontSize=13;fontColor=#7c2d12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="460" width="220" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="r-lambda" value="Lambda node runner&#xa;Worker foundation for async orchestration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=13;fontColor=#78350f;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="460" width="220" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="r-llm" value="Optional model provider&#xa;Gemma-compatible HTTP or Ollama&#xa;Explains gate decisions, does not decide pass/fail" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#faf5ff;strokeColor=#9333ea;dashed=1;fontSize=13;fontColor=#581c87;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="650" width="550" height="95" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r-e1" value="opens UI" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#2563eb;fontColor=#1e3a8a;endArrow=block;endFill=1;" edge="1" parent="1" source="r-users" target="r-ui">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e2" value="reads dashboard state" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0284c7;fontColor=#0c4a6e;endArrow=block;endFill=1;" edge="1" parent="1" source="r-ui" target="r-api-dashboard">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e3" value="register + ingest + gate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#16a34a;fontColor=#14532d;endArrow=block;endFill=1;" edge="1" parent="1" source="r-gitlab" target="r-api-ingest">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e4" value="same contract" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d97706;fontColor=#78350f;endArrow=block;endFill=1;" edge="1" parent="1" source="r-demo" target="r-api-ingest">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e5" value="gate/compliance" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#dc2626;fontColor=#7f1d1d;endArrow=block;endFill=1;" edge="1" parent="1" source="r-api-ingest" target="r-api-gate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e6" value="uses backend logic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#64748b;fontColor=#334155;endArrow=block;endFill=1;" edge="1" parent="1" source="r-api-dashboard" target="r-core">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e7" value="uses backend logic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#64748b;fontColor=#334155;endArrow=block;endFill=1;" edge="1" parent="1" source="r-api-ingest" target="r-core">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e8" value="uses backend logic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#64748b;fontColor=#334155;endArrow=block;endFill=1;" edge="1" parent="1" source="r-api-gate" target="r-core">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e9" value="graph + audit evidence" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d97706;fontColor=#78350f;endArrow=block;endFill=1;" edge="1" parent="1" source="r-core" target="r-aurora">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e10" value="run state + policies" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0284c7;fontColor=#0c4a6e;endArrow=block;endFill=1;" edge="1" parent="1" source="r-core" target="r-dynamo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e11" value="publishes events" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#f97316;fontColor=#7c2d12;endArrow=block;endFill=1;" edge="1" parent="1" source="r-core" target="r-eventbridge">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e12" value="async worker foundation" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#f97316;fontColor=#7c2d12;dashed=1;endArrow=block;endFill=1;" edge="1" parent="1" source="r-eventbridge" target="r-lambda">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e13" value="future state writes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0284c7;fontColor=#0c4a6e;dashed=1;endArrow=block;endFill=1;" edge="1" parent="1" source="r-lambda" target="r-dynamo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-e14" value="optional explanation" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9333ea;fontColor=#581c87;dashed=1;endArrow=block;endFill=1;" edge="1" parent="1" source="r-core" target="r-llm">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="sequence" name="3. Live Demo Flow">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="s-title" value="Live Demo Flow&#xa;How we prove the UI is not dummy" style="text;html=1;strokeColor=none;fillColor=none;align=left;whiteSpace=wrap;fontSize=27;fontStyle=1;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="50" y="30" width="840" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s-step1" value="1&#xa;Run demo command&#xa;npm run graphflow:demo:fail-security" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=14;fontStyle=1;fontColor=#78350f;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="180" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="s-step2" value="2&#xa;Register workflow&#xa;POST /api/workflows/register&#xa;checkout-release-v1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;fontSize=14;fontStyle=1;fontColor=#14532d;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="360" y="180" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="s-step3" value="3&#xa;Ingest node events&#xa;POST /api/ingest/gitlab&#xa;build, unit, integration, dependency scan, static scan" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfeff;strokeColor=#0891b2;fontSize=14;fontStyle=1;fontColor=#164e63;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="640" y="180" width="240" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="s-step4" value="4&#xa;Security node fails&#xa;static_scan = failed&#xa;Downstream nodes become blocked by graph traversal" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#dc2626;fontSize=14;fontStyle=1;fontColor=#7f1d1d;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="940" y="180" width="240" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="s-step5" value="5&#xa;Call release gate&#xa;GET /api/runs/{runId}/gate&#xa;Returns HTTP 409 + FAIL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef2f2;strokeColor=#dc2626;fontSize=14;fontStyle=1;fontColor=#7f1d1d;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="180" width="230" height="130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s-dashboard" value="Open printed dashboard URL&#xa;&#xa;Graph shows actual runId&#xa;Failed static_scan&#xa;Blocked approval/staging/smoke/canary/prod path&#xa;Policy and migration-risk evidence&#xa;Agent explanation and logs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontSize=16;fontStyle=1;fontColor=#1e3a8a;spacing=16;" vertex="1" parent="1">
+          <mxGeometry x="190" y="440" width="520" height="230" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s-compliance" value="Compliance export&#xa;GET /api/runs/{runId}/compliance&#xa;&#xa;Includes graph summary, gate decision, policy snapshot, run state, migration risk, audit evidence flags" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#64748b;fontSize=15;fontColor=#334155;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="860" y="450" width="500" height="210" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s-line" value="Demo sentence&#xa;This is not a mocked dashboard. We generated this run through the same API GitLab uses, and GraphFlow produced a real production-blocking gate decision." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontSize=17;fontStyle=1;fontColor=#14532d;spacing=18;" vertex="1" parent="1">
+          <mxGeometry x="130" y="780" width="1340" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s-e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#64748b;endArrow=block;endFill=1;" edge="1" parent="1" source="s-step1" target="s-step2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s-e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#64748b;endArrow=block;endFill=1;" edge="1" parent="1" source="s-step2" target="s-step3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s-e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#64748b;endArrow=block;endFill=1;" edge="1" parent="1" source="s-step3" target="s-step4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s-e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#64748b;endArrow=block;endFill=1;" edge="1" parent="1" source="s-step4" target="s-step5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s-e5" value="printed URL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#2563eb;fontColor=#1e3a8a;endArrow=block;endFill=1;" edge="1" parent="1" source="s-step5" target="s-dashboard">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s-e6" value="evidence artifact" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#64748b;fontColor=#334155;endArrow=block;endFill=1;" edge="1" parent="1" source="s-step5" target="s-compliance">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="data-model" name="4. Data Model And Evidence">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="d-title" value="GraphFlow Data Model And Evidence Flow&#xa;Why Aurora + DynamoDB both matter" style="text;html=1;strokeColor=none;fillColor=none;align=left;whiteSpace=wrap;fontSize=27;fontStyle=1;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry x="50" y="30" width="960" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d-identity" value="RunIdentity&#xa;&#xa;tenantId&#xa;projectId&#xa;workflowId&#xa;runId" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#64748b;fontSize=15;fontStyle=1;fontColor=#334155;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="80" y="180" width="210" height="160" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d-workflow" value="Aurora graph tables&#xa;&#xa;workflows&#xa;workflow_nodes&#xa;workflow_edges&#xa;&#xa;Stable topology, durations, positions, node types" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fef3c7;strokeColor=#d97706;fontSize=13;fontColor=#78350f;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="410" y="150" width="250" height="190" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d-run" value="DynamoDB run state&#xa;&#xa;pk = TENANT#...#PROJECT#...#RUN#...&#xa;sk = META&#xa;sk = NODE#{nodeId}&#xa;&#xa;Write-heavy live status updates" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#e0f2fe;strokeColor=#0284c7;fontSize=13;fontColor=#0c4a6e;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="780" y="150" width="270" height="210" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d-policy" value="Release policy&#xa;&#xa;required node types&#xa;fail-on node types&#xa;approval-before-deploy&#xa;migration-risk blocking" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;fontSize=14;fontColor=#14532d;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1190" y="170" width="250" height="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d-gate" value="GateDecision&#xa;&#xa;verdict: PASS / WARN / FAIL&#xa;shouldBlock&#xa;reasons&#xa;failedNodes / blockedNodes / waitingNodes&#xa;blastRadius&#xa;criticalPath&#xa;migrationRisk&#xa;policy snapshot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef2f2;strokeColor=#dc2626;fontSize=14;fontStyle=1;fontColor=#7f1d1d;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="470" y="500" width="320" height="260" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d-audit" value="Aurora audit evidence&#xa;&#xa;release_audit_events&#xa;release_audit_summary&#xa;&#xa;actor, node, status, message, metadata, timestamp" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffedd5;strokeColor=#f97316;fontSize=13;fontColor=#7c2d12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="920" y="520" width="270" height="210" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d-export" value="Compliance export&#xa;&#xa;/api/runs/{runId}/compliance&#xa;&#xa;Graph summary&#xa;Gate decision&#xa;Policy evidence&#xa;Migration risk&#xa;Run state&#xa;Audit events&#xa;SOC 2 / PCI evidence flags" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#faf5ff;strokeColor=#9333ea;fontSize=14;fontStyle=1;fontColor=#581c87;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="500" width="260" height="260" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d-note" value="Design decision&#xa;&#xa;Aurora is used for stable, queryable graph and audit/evidence data.&#xa;DynamoDB is used for high-volume live run state and fast CI event writes.&#xa;The release gate composes both into one deterministic decision." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#64748b;fontSize=16;fontColor=#334155;spacing=16;" vertex="1" parent="1">
+          <mxGeometry x="120" y="840" width="1360" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d-e1" value="addresses all data" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#64748b;fontColor=#334155;endArrow=block;endFill=1;" edge="1" parent="1" source="d-identity" target="d-workflow">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d-e2" value="addresses all data" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#64748b;fontColor=#334155;endArrow=block;endFill=1;" edge="1" parent="1" source="d-identity" target="d-run">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d-e3" value="graph topology" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d97706;fontColor=#78350f;endArrow=block;endFill=1;" edge="1" parent="1" source="d-workflow" target="d-gate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d-e4" value="node statuses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0284c7;fontColor=#0c4a6e;endArrow=block;endFill=1;" edge="1" parent="1" source="d-run" target="d-gate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d-e5" value="org rules" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#16a34a;fontColor=#14532d;endArrow=block;endFill=1;" edge="1" parent="1" source="d-policy" target="d-gate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d-e6" value="ingest writes evidence" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#f97316;fontColor=#7c2d12;endArrow=block;endFill=1;" edge="1" parent="1" source="d-run" target="d-audit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d-e7" value="decision evidence" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#dc2626;fontColor=#7f1d1d;endArrow=block;endFill=1;" edge="1" parent="1" source="d-gate" target="d-export">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="d-e8" value="audit trail" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#f97316;fontColor=#7c2d12;endArrow=block;endFill=1;" edge="1" parent="1" source="d-audit" target="d-export">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

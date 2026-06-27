@@ -31,6 +31,8 @@ export const workflowNodeConfigSchema = z.object({
   source: z.string().min(1).max(240).optional(),
   type: z.enum(["compute", "quality", "security", "approval", "deploy"]).optional(),
   duration: z.number().positive().optional(),
+  x: z.number().min(0).max(100).optional(),
+  y: z.number().min(0).max(100).optional(),
 });
 
 export const workflowConfigSchema = z.object({
@@ -43,9 +45,24 @@ export const workflowConfigSchema = z.object({
   edges: z.array(z.tuple([z.string().min(1).max(120), z.string().min(1).max(120)])).max(160),
 });
 
+export const nodeTypeSchema = z.enum(["compute", "quality", "security", "approval", "deploy"]);
+
+export const releasePolicySchema = z.object({
+  tenantId: z.string().min(1).max(80).optional(),
+  policyId: z.string().min(1).max(120).optional(),
+  name: z.string().min(1).max(160).default("Production Release Safety Policy"),
+  description: z.string().max(500).optional(),
+  requiredNodeTypes: z.array(nodeTypeSchema).default(["quality", "security", "approval", "deploy"]),
+  failOnNodeTypes: z.array(nodeTypeSchema).default(["security", "deploy"]),
+  warnOnWaitingApproval: z.boolean().default(true),
+  blockOnMigrationRisk: z.boolean().default(true),
+  requireApprovalBeforeDeploy: z.boolean().default(true),
+});
+
 export type RunAction = z.infer<typeof runActionSchema>;
 export type GitLabIngestPayload = z.infer<typeof gitLabIngestSchema>;
 export type WorkflowConfigPayload = z.infer<typeof workflowConfigSchema>;
+export type ReleasePolicyPayload = z.infer<typeof releasePolicySchema>;
 
 export type RunIdentity = {
   tenantId: string;
@@ -102,6 +119,10 @@ export function projectPartitionKey(identity: Pick<RunIdentity, "tenantId" | "pr
 
 export function workflowSortKey(workflowId: string) {
   return `WORKFLOW#${workflowId}`;
+}
+
+export function policySortKey(policyId: string) {
+  return `POLICY#${policyId}`;
 }
 
 export function normalizeStatus(value: string | undefined): Status {

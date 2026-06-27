@@ -33,7 +33,11 @@ See:
 
 - `docs/aws-setup.md`
 - `docs/architecture.md`
+- `docs/architecture.drawio`
 - `docs/product-ui-vision.md`
+- `docs/enterprise-slice-status.md`
+- `docs/data-structures-and-algorithms.md`
+- `docs/code-map.md`
 - `docs/backend.md`
 - `docs/gitlab-cicd.md`
 - `database/aurora-schema.sql`
@@ -60,9 +64,14 @@ Example files:
 
 - `examples/gitlab-ci-graphflow.yml`
 - `examples/graphflow.config.json`
+- `demo-repos/checkout-service`
 
 A team can add GraphFlow as a reporting stage in its existing GitLab pipeline, send job status to
 GraphFlow, and get a release dashboard without replacing its CI/CD system.
+
+For the most realistic demo, push `demo-repos/checkout-service` as a separate GitLab repository.
+It contains a checkout service, real tests, security checks, migration review, deploy stages, and
+GraphFlow reporter scripts for every CI job.
 
 ## CLI Deployment
 

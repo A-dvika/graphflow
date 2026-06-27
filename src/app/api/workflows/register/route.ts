@@ -4,7 +4,7 @@ import { requireIngestAuth } from "@/lib/backend/auth";
 import { workflowConfigSchema } from "@/lib/backend/model";
 
 export async function POST(request: Request) {
-  const authError = requireIngestAuth(request);
+  const authError = await requireIngestAuth(request);
   if (authError) {
     return authError;
   }

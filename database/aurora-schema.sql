@@ -22,6 +22,38 @@ create table if not exists workflow_edges (
   primary key (workflow_id, from_node_id, to_node_id)
 );
 
+create table if not exists release_audit_events (
+  id text primary key,
+  tenant_id text not null,
+  project_id text not null,
+  workflow_id text not null,
+  run_id text not null,
+  event_type text not null,
+  actor text,
+  node_id text,
+  status text,
+  message text not null,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists release_audit_events_run_idx
+on release_audit_events (tenant_id, project_id, workflow_id, run_id, created_at);
+
+create table if not exists release_policies (
+  tenant_id text not null,
+  policy_id text not null,
+  name text not null,
+  description text,
+  required_node_types jsonb not null,
+  fail_on_node_types jsonb not null,
+  warn_on_waiting_approval boolean not null default true,
+  block_on_migration_risk boolean not null default true,
+  require_approval_before_deploy boolean not null default true,
+  updated_at timestamptz not null default now(),
+  primary key (tenant_id, policy_id)
+);
+
 insert into workflows (id, name, description)
 values (
   'release-command-center',
@@ -84,3 +116,15 @@ from workflows w
 join workflow_nodes n on n.workflow_id = w.id
 left join workflow_edges e on e.workflow_id = w.id and e.from_node_id = n.id
 group by w.id, w.name, n.id, n.label, n.node_type, n.planned_duration_minutes;
+
+create or replace view release_audit_summary as
+select
+  tenant_id,
+  project_id,
+  workflow_id,
+  run_id,
+  count(*) as event_count,
+  min(created_at) as first_event_at,
+  max(created_at) as last_event_at
+from release_audit_events
+group by tenant_id, project_id, workflow_id, run_id;
