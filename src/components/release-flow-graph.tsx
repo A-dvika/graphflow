@@ -50,9 +50,9 @@ type ReleaseMap = {
 };
 
 const CARD_WIDTH = 220;
-const CARD_HEIGHT = 116;
+const CARD_HEIGHT = 138;
 const COLUMN_STEP = 330;
-const ROW_STEP = 148;
+const ROW_STEP = 174;
 const PADDING_X = 42;
 const PADDING_TOP = 84;
 const PADDING_BOTTOM = 48;
@@ -426,7 +426,7 @@ export function ReleaseFlowGraph({
                 <button
                   key={node.id}
                   onClick={() => onSelectNode?.(node.id)}
-                  className={`absolute z-10 rounded-lg border p-3 text-left shadow-sm transition hover:border-[var(--status-pending)] hover:shadow-md ${config.border} ${config.bg} ${
+                  className={`absolute z-10 flex flex-col overflow-hidden rounded-lg border p-3 text-left shadow-sm transition hover:border-[var(--status-pending)] hover:shadow-md ${config.border} ${config.bg} ${
                     selected ? "ring-2 ring-[var(--status-pending)]" : ""
                   } ${dimmed ? "opacity-45" : "opacity-100"}`}
                   style={{
@@ -449,7 +449,7 @@ export function ReleaseFlowGraph({
                     <span className="shrink-0 text-[10px] text-[var(--foreground-secondary)]">{node.duration}m</span>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                  <div className="mt-3 flex min-h-5 flex-wrap items-center gap-1.5">
                     <span className="rounded bg-[var(--background)] px-1.5 py-0.5 text-[10px] text-[var(--foreground-secondary)]">
                       {nodeTypeLabel(node.type)}
                     </span>
@@ -465,7 +465,7 @@ export function ReleaseFlowGraph({
                     )}
                   </div>
 
-                  <div className="mt-3 flex items-center justify-between border-t border-[var(--border)] pt-2 text-[10px] text-[var(--foreground-secondary)]">
+                  <div className="mt-auto flex items-center justify-between border-t border-[var(--border)] pt-2 text-[10px] text-[var(--foreground-secondary)]">
                     <span>{meta?.incoming.length ?? 0} in</span>
                     <span>{meta?.outgoing.length ?? 0} out</span>
                   </div>
