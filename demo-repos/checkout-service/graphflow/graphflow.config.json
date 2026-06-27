@@ -17,17 +17,44 @@
       "source": "gitlab:unit_tests",
       "type": "quality",
       "duration": 5,
-      "x": 25,
-      "y": 18
+      "x": 24,
+      "y": 12
     },
     {
-      "id": "integration",
+      "id": "checkout_integration",
       "label": "Checkout Integration Tests",
       "source": "gitlab:integration_tests",
       "type": "quality",
       "duration": 7,
-      "x": 25,
-      "y": 42
+      "x": 24,
+      "y": 30
+    },
+    {
+      "id": "pricing_contract",
+      "label": "Pricing Contract Tests",
+      "source": "gitlab:pricing_contract",
+      "type": "quality",
+      "duration": 6,
+      "x": 24,
+      "y": 48
+    },
+    {
+      "id": "payment_contract",
+      "label": "Payment Provider Contract",
+      "source": "gitlab:payment_contract",
+      "type": "quality",
+      "duration": 8,
+      "x": 24,
+      "y": 66
+    },
+    {
+      "id": "inventory_contract",
+      "label": "Inventory Reservation Contract",
+      "source": "gitlab:inventory_contract",
+      "type": "quality",
+      "duration": 6,
+      "x": 24,
+      "y": 84
     },
     {
       "id": "dependency_scan",
@@ -35,8 +62,8 @@
       "source": "gitlab:dependency_scan",
       "type": "security",
       "duration": 6,
-      "x": 25,
-      "y": 66
+      "x": 42,
+      "y": 16
     },
     {
       "id": "static_scan",
@@ -45,16 +72,61 @@
       "type": "security",
       "duration": 6,
       "x": 42,
-      "y": 66
+      "y": 34
+    },
+    {
+      "id": "pci_scan",
+      "label": "PCI Control Scan",
+      "source": "gitlab:pci_scan",
+      "type": "security",
+      "duration": 9,
+      "x": 42,
+      "y": 52
+    },
+    {
+      "id": "fraud_model_check",
+      "label": "Fraud Model Compatibility",
+      "source": "gitlab:fraud_model_check",
+      "type": "security",
+      "duration": 10,
+      "x": 42,
+      "y": 70
+    },
+    {
+      "id": "risk_review",
+      "label": "Release Risk Review",
+      "source": "gitlab:risk_review",
+      "type": "approval",
+      "duration": 10,
+      "x": 58,
+      "y": 42
     },
     {
       "id": "migration_check",
       "label": "Migration Review",
       "source": "gitlab:migration_review",
       "type": "quality",
+      "duration": 7,
+      "x": 58,
+      "y": 62
+    },
+    {
+      "id": "backfill_check",
+      "label": "Backfill Load Check",
+      "source": "gitlab:backfill_check",
+      "type": "quality",
+      "duration": 8,
+      "x": 58,
+      "y": 80
+    },
+    {
+      "id": "rollback_plan",
+      "label": "Rollback Plan Review",
+      "source": "gitlab:rollback_plan",
+      "type": "approval",
       "duration": 5,
-      "x": 42,
-      "y": 30
+      "x": 72,
+      "y": 24
     },
     {
       "id": "approval",
@@ -62,8 +134,8 @@
       "source": "gitlab:manual:production_approval",
       "type": "approval",
       "duration": 12,
-      "x": 58,
-      "y": 42
+      "x": 72,
+      "y": 48
     },
     {
       "id": "staging",
@@ -71,17 +143,17 @@
       "source": "gitlab:deploy_staging",
       "type": "deploy",
       "duration": 5,
-      "x": 73,
-      "y": 28
+      "x": 84,
+      "y": 24
     },
     {
-      "id": "smoke",
-      "label": "Smoke Tests",
-      "source": "gitlab:smoke_tests",
+      "id": "e2e",
+      "label": "Checkout E2E Tests",
+      "source": "gitlab:e2e_tests",
       "type": "quality",
-      "duration": 4,
-      "x": 73,
-      "y": 58
+      "duration": 9,
+      "x": 84,
+      "y": 44
     },
     {
       "id": "canary",
@@ -89,8 +161,17 @@
       "source": "gitlab:canary_deploy",
       "type": "deploy",
       "duration": 6,
-      "x": 86,
-      "y": 28
+      "x": 94,
+      "y": 32
+    },
+    {
+      "id": "canary_metrics",
+      "label": "Canary Metrics Guard",
+      "source": "gitlab:canary_metrics",
+      "type": "quality",
+      "duration": 8,
+      "x": 94,
+      "y": 54
     },
     {
       "id": "prod",
@@ -98,23 +179,36 @@
       "source": "gitlab:deploy_production",
       "type": "deploy",
       "duration": 8,
-      "x": 94,
+      "x": 98,
       "y": 42
     }
   ],
   "edges": [
     ["build", "unit"],
-    ["build", "integration"],
-    ["build", "dependency_scan"],
-    ["build", "static_scan"],
-    ["unit", "migration_check"],
-    ["integration", "migration_check"],
-    ["dependency_scan", "approval"],
-    ["static_scan", "approval"],
-    ["migration_check", "approval"],
+    ["build", "checkout_integration"],
+    ["build", "pricing_contract"],
+    ["build", "payment_contract"],
+    ["build", "inventory_contract"],
+    ["unit", "dependency_scan"],
+    ["checkout_integration", "static_scan"],
+    ["pricing_contract", "pci_scan"],
+    ["payment_contract", "fraud_model_check"],
+    ["inventory_contract", "fraud_model_check"],
+    ["dependency_scan", "risk_review"],
+    ["static_scan", "risk_review"],
+    ["pci_scan", "risk_review"],
+    ["fraud_model_check", "risk_review"],
+    ["checkout_integration", "migration_check"],
+    ["payment_contract", "migration_check"],
+    ["inventory_contract", "backfill_check"],
+    ["migration_check", "rollback_plan"],
+    ["backfill_check", "rollback_plan"],
+    ["risk_review", "approval"],
+    ["rollback_plan", "approval"],
     ["approval", "staging"],
-    ["staging", "smoke"],
-    ["smoke", "canary"],
-    ["canary", "prod"]
+    ["staging", "e2e"],
+    ["e2e", "canary"],
+    ["canary", "canary_metrics"],
+    ["canary_metrics", "prod"]
   ]
 }

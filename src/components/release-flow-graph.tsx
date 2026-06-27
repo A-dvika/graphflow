@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
@@ -8,7 +8,9 @@ import {
   Clock,
   GitBranch,
   Lock,
+  Maximize2,
   RadioTower,
+  X,
 } from "lucide-react";
 import { type FlowEdge, type FlowNode, type Status } from "@/lib/graphflow";
 
@@ -20,6 +22,7 @@ type ReleaseFlowGraphProps = {
   blastRadius: string[];
   selectedNodeId?: string | null;
   onSelectNode?: (nodeId: string) => void;
+  isExpandedView?: boolean;
 };
 
 type PositionedNode = FlowNode & {
@@ -255,15 +258,32 @@ export function ReleaseFlowGraph({
   blastRadius,
   selectedNodeId,
   onSelectNode,
+  isExpandedView = false,
 }: ReleaseFlowGraphProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const releaseMap = useMemo(() => buildReleaseMap(nodes, edges), [nodes, edges]);
   const selectedNode = selectedNodeId ? releaseMap.byId.get(selectedNodeId) : null;
   const selectedMeta = selectedNode ? releaseMap.meta.get(selectedNode.id) : null;
   const criticalEdges = edges.filter((edge) => edgeInPath(edge, criticalPath)).length;
+  const markerId = isExpandedView ? "release-graph-arrow-expanded" : "release-graph-arrow";
+  const graphHeight = isExpandedView ? Math.max(releaseMap.height, 680) : releaseMap.height;
+  const containerClass = isExpandedView
+    ? "grid h-full min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]"
+    : "grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]";
+  const sectionClass = isExpandedView
+    ? "flex min-h-0 flex-col rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5"
+    : "rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5";
+  const graphScrollerClass = isExpandedView
+    ? "min-h-0 flex-1 overflow-auto rounded-lg border border-[var(--border)] bg-[var(--background)]"
+    : "overflow-auto rounded-lg border border-[var(--border)] bg-[var(--background)]";
+  const asideClass = isExpandedView
+    ? "min-h-0 overflow-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5"
+    : "rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5";
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
+    <>
+    <div className={containerClass}>
+      <section className={sectionClass}>
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-[var(--foreground)]">Release Dependency Graph</h3>
@@ -281,6 +301,16 @@ export function ReleaseFlowGraph({
             <span className="rounded border border-[var(--status-pending)] px-2 py-1 text-[var(--status-pending)]">
               Critical route: {criticalEdges} links
             </span>
+            {!isExpandedView && (
+              <button
+                onClick={() => setIsExpanded(true)}
+                className="inline-flex items-center gap-1.5 rounded border border-[var(--border)] px-2 py-1 text-[var(--foreground)] transition hover:border-[var(--status-pending)] hover:text-[var(--status-pending)]"
+                type="button"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+                Expand
+              </button>
+            )}
           </div>
         </div>
 
@@ -326,11 +356,11 @@ export function ReleaseFlowGraph({
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--background)]">
+        <div className={graphScrollerClass}>
           <div
             className="relative"
             style={{
-              height: releaseMap.height,
+              height: graphHeight,
               minWidth: releaseMap.width,
             }}
           >
@@ -359,12 +389,12 @@ export function ReleaseFlowGraph({
             <svg
               aria-hidden="true"
               className="absolute inset-0 z-0"
-              height={releaseMap.height}
-              viewBox={`0 0 ${releaseMap.width} ${releaseMap.height}`}
+              height={graphHeight}
+              viewBox={`0 0 ${releaseMap.width} ${graphHeight}`}
               width={releaseMap.width}
             >
               <defs>
-                <marker id="release-graph-arrow" markerHeight="8" markerWidth="8" orient="auto" refX="7" refY="4">
+                <marker id={markerId} markerHeight="8" markerWidth="8" orient="auto" refX="7" refY="4">
                   <path d="M0,0 L8,4 L0,8 Z" fill="context-stroke" />
                 </marker>
               </defs>
@@ -390,7 +420,7 @@ export function ReleaseFlowGraph({
                     key={edgeKey(edge)}
                     d={path}
                     fill="none"
-                    markerEnd="url(#release-graph-arrow)"
+                    markerEnd={`url(#${markerId})`}
                     opacity={selectedNodeId ? (touched ? 1 : 0.18) : critical || impacted ? 0.92 : 0.42}
                     stroke={stroke}
                     strokeDasharray={critical ? undefined : impacted ? "7 7" : undefined}
@@ -476,7 +506,7 @@ export function ReleaseFlowGraph({
         </div>
       </section>
 
-      <aside className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
+      <aside className={asideClass}>
         <div className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
           <GitBranch className="h-4 w-4 text-[var(--status-pending)]" />
           Selected Node
@@ -536,6 +566,41 @@ export function ReleaseFlowGraph({
         )}
       </aside>
     </div>
+    {!isExpandedView && isExpanded && (
+      <div className="fixed inset-0 z-50 bg-[var(--background)]/95 p-4 backdrop-blur">
+        <div className="flex h-full min-h-0 flex-col rounded-lg border border-[var(--border)] bg-[var(--background)] p-4 shadow-2xl">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">
+                GraphFlow operations workspace
+              </p>
+              <h2 className="mt-1 text-xl font-semibold text-[var(--foreground)]">Expanded Release Dependency Graph</h2>
+            </div>
+            <button
+              onClick={() => setIsExpanded(false)}
+              className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-[var(--status-pending)] hover:text-[var(--status-pending)]"
+              type="button"
+            >
+              <X className="h-4 w-4" />
+              Close
+            </button>
+          </div>
+          <div className="min-h-0 flex-1">
+            <ReleaseFlowGraph
+              blastRadius={blastRadius}
+              criticalPath={criticalPath}
+              edges={edges}
+              isExpandedView
+              nodes={nodes}
+              onSelectNode={onSelectNode}
+              selectedNodeId={selectedNodeId}
+              statuses={statuses}
+            />
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   AlertCircle,
@@ -19,7 +19,6 @@ import {
   RotateCcw,
   Server,
   ShieldAlert,
-  Sparkles,
 } from "lucide-react";
 import { ReleaseFlowGraph } from "@/components/release-flow-graph";
 import { type ConsoleSection } from "@/lib/console-sections";
@@ -449,11 +448,6 @@ export function Dashboard({ section }: DashboardProps) {
     }
   }
 
-  const selectedNode = useMemo(
-    () => overview.graph.nodes.find((node) => node.id === selectedNodeId) ?? null,
-    [overview.graph.nodes, selectedNodeId],
-  );
-
   const completedCount = overview.graph.nodes.filter((node) => overview.run.statuses[node.id] === "success").length;
   const failedCount = overview.graph.nodes.filter((node) => overview.run.statuses[node.id] === "failed").length;
   const blockedCount = overview.graph.nodes.filter((node) => overview.run.statuses[node.id] === "blocked").length;
@@ -610,7 +604,7 @@ export function Dashboard({ section }: DashboardProps) {
 
         <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
           {renderAgentCard()}
-          {renderSelectedNodeCard()}
+          {renderGateEvidenceCard()}
         </section>
       </div>
     );
@@ -1131,37 +1125,65 @@ export function Dashboard({ section }: DashboardProps) {
     );
   }
 
-  function renderSelectedNodeCard() {
+  function renderGateEvidenceCard() {
+    const evidenceRows = [
+      {
+        label: "CI response",
+        value: overview.gate.shouldBlock ? "409 block" : "200 pass",
+        tone: overview.gate.shouldBlock ? "text-[var(--status-error)]" : "text-[var(--status-success)]",
+      },
+      {
+        label: "Failed nodes",
+        value: String(overview.gate.failedNodes.length),
+        tone: overview.gate.failedNodes.length > 0 ? "text-[var(--status-error)]" : "text-[var(--status-success)]",
+      },
+      {
+        label: "Blocked nodes",
+        value: String(overview.gate.blockedNodes.length),
+        tone: overview.gate.blockedNodes.length > 0 ? "text-[var(--status-warning)]" : "text-[var(--foreground)]",
+      },
+      {
+        label: "Required checks",
+        value: String(overview.gate.requiredNodes.length),
+        tone: "text-[var(--foreground)]",
+      },
+    ];
+
     return (
       <aside className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-[var(--status-pending)]" />
-          <h3 className="font-semibold text-[var(--foreground)]">Selected Graph Node</h3>
+          <ShieldAlert className={`h-4 w-4 ${verdictStyle.text}`} />
+          <h3 className="font-semibold text-[var(--foreground)]">Gate Evidence</h3>
         </div>
-        {selectedNode ? (
-          <dl className="mt-4 space-y-3 text-sm">
-            <div className="flex justify-between border-b border-[var(--border)] pb-2">
-              <dt className="text-[var(--foreground-secondary)]">Node</dt>
-              <dd className="text-[var(--foreground)]">{selectedNode.label}</dd>
+        <p className="mt-3 text-sm text-[var(--foreground-secondary)]">
+          The same decision is returned to GitLab as a required release gate.
+        </p>
+
+        <dl className="mt-4 space-y-3 text-sm">
+          {evidenceRows.map((row) => (
+            <div key={row.label} className="flex justify-between border-b border-[var(--border)] pb-2 last:border-b-0 last:pb-0">
+              <dt className="text-[var(--foreground-secondary)]">{row.label}</dt>
+              <dd className={`font-semibold ${row.tone}`}>{row.value}</dd>
             </div>
-            <div className="flex justify-between border-b border-[var(--border)] pb-2">
-              <dt className="text-[var(--foreground-secondary)]">Status</dt>
-              <dd className={statusTone(overview.run.statuses[selectedNode.id] ?? "pending")}>
-                {statusLabel(overview.run.statuses[selectedNode.id] ?? "pending")}
-              </dd>
-            </div>
-            <div className="flex justify-between border-b border-[var(--border)] pb-2">
-              <dt className="text-[var(--foreground-secondary)]">Type</dt>
-              <dd className="text-[var(--foreground)]">{nodeTypeLabel(selectedNode.type)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-[var(--foreground-secondary)]">Duration</dt>
-              <dd className="text-[var(--foreground)]">{selectedNode.duration}m</dd>
-            </div>
-          </dl>
-        ) : (
-          <p className="mt-4 text-sm text-[var(--foreground-secondary)]">Select any node from the graph or run list.</p>
-        )}
+          ))}
+        </dl>
+
+        <div className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">Policy</p>
+          <p className="mt-2 text-sm font-semibold text-[var(--foreground)]">{overview.gate.policy.name}</p>
+          <p className={`mt-2 text-xs ${statusTone(overview.gate.migrationRisk.level === "high" ? "failed" : overview.gate.migrationRisk.level === "medium" ? "waiting" : "success")}`}>
+            Migration risk: {overview.gate.migrationRisk.level}
+          </p>
+        </div>
+
+        <div className="mt-5 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">Why</p>
+          {overview.gate.reasons.slice(0, 3).map((reason) => (
+            <p key={reason} className="rounded border border-[var(--border)] bg-[var(--background)] p-2 text-xs text-[var(--foreground-secondary)]">
+              {reason}
+            </p>
+          ))}
+        </div>
       </aside>
     );
   }
