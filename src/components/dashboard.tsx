@@ -12,7 +12,6 @@ import {
   FileCode2,
   GitBranch,
   GitCommit,
-  Lock,
   Play,
   RadioTower,
   RefreshCw,
@@ -272,15 +271,6 @@ function statusTone(status: Status | string) {
   return "text-[var(--foreground-secondary)]";
 }
 
-function runHealth(statuses: Record<string, Status>) {
-  const values = Object.values(statuses);
-
-  if (values.includes("failed") || values.includes("blocked")) return "blocked";
-  if (values.length > 0 && values.every((status) => status === "success")) return "ready";
-  if (values.includes("waiting")) return "waiting";
-  return "running";
-}
-
 function formatSource(source: string) {
   return source.replace(/-/g, " ");
 }
@@ -453,46 +443,48 @@ export function Dashboard({ section }: DashboardProps) {
   const blockedCount = overview.graph.nodes.filter((node) => overview.run.statuses[node.id] === "blocked").length;
   const waitingCount = overview.graph.nodes.filter((node) => overview.run.statuses[node.id] === "waiting").length;
   const runningCount = overview.graph.nodes.filter((node) => overview.run.statuses[node.id] === "running").length;
-  const runStatus = runHealth(overview.run.statuses);
+  const pendingCount = overview.graph.nodes.filter((node) => !overview.run.statuses[node.id] || overview.run.statuses[node.id] === "pending").length;
   const progress = overview.graph.nodes.length > 0 ? Math.round((completedCount / overview.graph.nodes.length) * 100) : 0;
   const verdictStyle = verdictStyles(overview.gate.verdict);
   const deploymentNodes = overview.graph.nodes.filter((node) => node.type === "deploy");
   const gateNodes = overview.graph.nodes.filter((node) => overview.gate.requiredNodes.includes(node.id));
   const successRate = overview.graph.nodes.length > 0 ? Math.round((completedCount / overview.graph.nodes.length) * 100) : 0;
+  const primaryBlockerId =
+    overview.gate.failedNodes[0] ?? overview.gate.blockedNodes[0] ?? overview.gate.waitingNodes[0] ?? null;
+  const primaryBlocker = primaryBlockerId ? overview.graph.nodes.find((node) => node.id === primaryBlockerId) : null;
+  const nextAction = overview.insight.nextActions[0] ?? overview.run.analysis.recommendation;
+  const progressSegments = [
+    { label: "Passed", value: completedCount, tone: "bg-[var(--status-success)]" },
+    { label: "Running", value: runningCount, tone: "bg-[var(--status-pending)]" },
+    { label: "Waiting", value: waitingCount, tone: "bg-[var(--status-warning)]" },
+    { label: "Blocked", value: blockedCount + failedCount, tone: "bg-[var(--status-error)]" },
+    { label: "Pending", value: pendingCount, tone: "bg-[var(--status-neutral)]" },
+  ].filter((segment) => segment.value > 0);
 
-  const stats = [
+  const overviewCards = [
     {
-      icon: Activity,
-      label: "Run Health",
-      value: statusLabel(runStatus),
-      detail: `${completedCount}/${overview.graph.nodes.length} nodes complete`,
-      tone: statusTone(runStatus),
-    },
-    {
-      icon: Lock,
-      label: "Gate Verdict",
-      value: overview.gate.verdict,
-      detail: overview.gate.shouldBlock ? "Would block production" : "Can continue",
+      label: "Production decision",
+      value: overview.gate.shouldBlock ? "Do not release" : overview.gate.verdict === "WARN" ? "Review first" : "Safe to continue",
+      detail: overview.gate.shouldBlock ? "GitLab gate returns 409" : "GitLab gate returns 200",
       tone: verdictStyle.text,
     },
     {
-      icon: GitBranch,
-      label: "Critical Path",
-      value: `${overview.gate.criticalPath.minutes}m`,
-      detail: `${overview.gate.criticalPath.path.length} graph nodes`,
-      tone: "text-[var(--status-pending)]",
+      label: "Needs attention",
+      value: primaryBlocker?.label ?? "No blocker",
+      detail: primaryBlocker ? statusLabel(overview.run.statuses[primaryBlocker.id] ?? "pending") : "No failed or waiting gate",
+      tone: primaryBlocker ? statusTone(overview.run.statuses[primaryBlocker.id] ?? "pending") : "text-[var(--status-success)]",
     },
     {
-      icon: AlertCircle,
-      label: "Migration Risk",
-      value: overview.gate.migrationRisk.level.toUpperCase(),
-      detail: overview.gate.migrationRisk.summary,
-      tone:
-        overview.gate.migrationRisk.level === "high"
-          ? "text-[var(--status-error)]"
-          : overview.gate.migrationRisk.level === "medium"
-            ? "text-[var(--status-warning)]"
-            : "text-[var(--status-success)]",
+      label: "Downstream impact",
+      value: `${overview.gate.blastRadius.length} nodes`,
+      detail: overview.gate.blastRadius.length > 0 ? "Production path is affected" : "No downstream impact",
+      tone: overview.gate.blastRadius.length > 0 ? "text-[var(--status-warning)]" : "text-[var(--status-success)]",
+    },
+    {
+      label: "Critical route",
+      value: `${overview.gate.criticalPath.minutes}m`,
+      detail: `${overview.gate.criticalPath.path.length} dependent steps`,
+      tone: "text-[var(--status-pending)]",
     },
   ];
 
@@ -563,29 +555,58 @@ export function Dashboard({ section }: DashboardProps) {
         </section>
 
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {stats.map((stat) => (
-            <div key={stat.label}>{metricCard(stat)}</div>
+          {overviewCards.map((card) => (
+            <div key={card.label} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+              <p className="text-sm text-[var(--foreground-secondary)]">{card.label}</p>
+              <p className={`mt-2 line-clamp-2 min-h-14 text-xl font-bold leading-tight ${card.tone}`}>{card.value}</p>
+              <p className="mt-2 text-xs text-[var(--foreground-secondary)]">{card.detail}</p>
+            </div>
           ))}
         </section>
 
         <section className="grid gap-4 xl:grid-cols-[1fr_360px]">
           <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
-            <div className="mb-3 flex items-center justify-between text-sm">
-              <span className="text-[var(--foreground-secondary)]">Release progress</span>
-              <span className="font-semibold text-[var(--foreground)]">{progress}%</span>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+              <div>
+                <span className="text-[var(--foreground-secondary)]">Release progress</span>
+                <p className="mt-1 text-xs text-[var(--foreground-secondary)]">
+                  {completedCount} passed, {runningCount} running, {waitingCount} waiting, {blockedCount + failedCount} blocked
+                </p>
+              </div>
+              <span className="font-semibold text-[var(--foreground)]">{progress}% complete</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-[var(--background)]">
-              <div className="h-full rounded-full bg-[var(--status-pending)] transition-all" style={{ width: `${progress}%` }} />
+            <div className="flex h-2 overflow-hidden rounded-full bg-[var(--background)]">
+              {progressSegments.length > 0 ? (
+                progressSegments.map((segment) => (
+                  <div
+                    key={segment.label}
+                    className={`${segment.tone} transition-all`}
+                    style={{ width: `${Math.max(4, Math.round((segment.value / overview.graph.nodes.length) * 100))}%` }}
+                    title={`${segment.label}: ${segment.value}`}
+                  />
+                ))
+              ) : (
+                <div className="h-full w-full bg-[var(--status-neutral)]" />
+              )}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {progressSegments.map((segment) => (
+                <span key={segment.label} className="inline-flex items-center gap-1.5 text-xs text-[var(--foreground-secondary)]">
+                  <span className={`h-2 w-2 rounded-full ${segment.tone}`} />
+                  {segment.label} {segment.value}
+                </span>
+              ))}
             </div>
           </div>
 
           <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm text-[var(--foreground-secondary)]">CI gate behavior</p>
+                <p className="text-sm text-[var(--foreground-secondary)]">Next safest move</p>
                 <p className={`mt-1 text-sm font-semibold ${overview.gate.shouldBlock ? "text-[var(--status-error)]" : "text-[var(--status-success)]"}`}>
                   {overview.gate.shouldBlock ? "Blocks production deploy" : "Allows release to continue"}
                 </p>
+                <p className="mt-2 line-clamp-2 text-xs text-[var(--foreground-secondary)]">{nextAction}</p>
               </div>
               <GitCommit className={`h-5 w-5 ${overview.gate.shouldBlock ? "text-[var(--status-error)]" : "text-[var(--status-success)]"}`} />
             </div>
@@ -1104,22 +1125,41 @@ export function Dashboard({ section }: DashboardProps) {
   function renderAgentCard() {
     return (
       <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
-        <div className="flex items-center gap-2">
-          <Bot className="h-5 w-5 text-[var(--status-pending)]" />
-          <h3 className="text-lg font-semibold text-[var(--foreground)]">Release Risk Agent</h3>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Bot className="h-5 w-5 text-[var(--status-pending)]" />
+            <h3 className="text-lg font-semibold text-[var(--foreground)]">Release Brief</h3>
+          </div>
+          <span className="rounded border border-[var(--border)] px-2 py-1 text-xs text-[var(--foreground-secondary)]">
+            {overview.insight.mode === "llm" ? "Agent assisted" : "Deterministic"}
+          </span>
         </div>
         <p className="mt-3 text-xl font-semibold text-[var(--foreground)]">{overview.insight.headline}</p>
         <p className="mt-3 text-sm leading-6 text-[var(--foreground-secondary)]">{overview.insight.explanation}</p>
-        <div className="mt-5">
-          <p className="text-sm font-semibold text-[var(--foreground)]">Recommended next actions</p>
-          <ol className="mt-3 space-y-2">
-            {overview.insight.nextActions.map((action, index) => (
-              <li key={action} className="flex gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 text-sm text-[var(--foreground-secondary)]">
-                <span className="font-semibold text-[var(--status-pending)]">{index + 1}</span>
-                <span>{action}</span>
-              </li>
-            ))}
-          </ol>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-[1fr_1fr]">
+          <div>
+            <p className="text-sm font-semibold text-[var(--foreground)]">Do next</p>
+            <ol className="mt-3 space-y-2">
+              {overview.insight.nextActions.slice(0, 3).map((action, index) => (
+                <li key={action} className="flex gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 text-sm text-[var(--foreground-secondary)]">
+                  <span className="font-semibold text-[var(--status-pending)]">{index + 1}</span>
+                  <span>{action}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold text-[var(--foreground)]">Risk areas</p>
+            <div className="mt-3 space-y-2">
+              {(overview.insight.riskAreas.length > 0 ? overview.insight.riskAreas : overview.gate.reasons).slice(0, 3).map((risk) => (
+                <p key={risk} className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 text-sm text-[var(--foreground-secondary)]">
+                  {risk}
+                </p>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1153,10 +1193,10 @@ export function Dashboard({ section }: DashboardProps) {
       <aside className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
         <div className="flex items-center gap-2">
           <ShieldAlert className={`h-4 w-4 ${verdictStyle.text}`} />
-          <h3 className="font-semibold text-[var(--foreground)]">Gate Evidence</h3>
+          <h3 className="font-semibold text-[var(--foreground)]">CI Evidence</h3>
         </div>
         <p className="mt-3 text-sm text-[var(--foreground-secondary)]">
-          The same decision is returned to GitLab as a required release gate.
+          What GitLab receives and what auditors can inspect later.
         </p>
 
         <dl className="mt-4 space-y-3 text-sm">
@@ -1176,13 +1216,22 @@ export function Dashboard({ section }: DashboardProps) {
           </p>
         </div>
 
-        <div className="mt-5 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">Why</p>
-          {overview.gate.reasons.slice(0, 3).map((reason) => (
-            <p key={reason} className="rounded border border-[var(--border)] bg-[var(--background)] p-2 text-xs text-[var(--foreground-secondary)]">
-              {reason}
-            </p>
-          ))}
+        <div className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-secondary)]">Audit trail</p>
+          <div className="mt-3 space-y-2 text-xs">
+            <div className="flex justify-between gap-3">
+              <span className="text-[var(--foreground-secondary)]">Events captured</span>
+              <span className="font-semibold text-[var(--foreground)]">{overview.run.events.length}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-[var(--foreground-secondary)]">Run source</span>
+              <span className="font-semibold text-[var(--foreground)]">{formatSource(overview.sources.run)}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-[var(--foreground-secondary)]">Graph source</span>
+              <span className="font-semibold text-[var(--foreground)]">{formatSource(overview.sources.workflow)}</span>
+            </div>
+          </div>
         </div>
       </aside>
     );
