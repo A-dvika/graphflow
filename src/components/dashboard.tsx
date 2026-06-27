@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { ReleaseFlowGraph } from "@/components/release-flow-graph";
 import { ReleaseDagGraph } from "@/components/release-dag-graph";
+import { DAGVisualization } from "@/components/dag-visualization";
 import { type ConsoleSection } from "@/lib/console-sections";
 import { type FlowEdge, type FlowNode, type Status } from "@/lib/graphflow";
 
@@ -599,7 +600,7 @@ export function Dashboard({ section }: DashboardProps) {
           </div>
         </section>
 
-        <ReleaseDagGraph />
+        <DAGVisualization />
 
         <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
           {renderAgentCard()}
@@ -706,7 +707,7 @@ export function Dashboard({ section }: DashboardProps) {
           </div>
         </section>
 
-        <ReleaseDagGraph />
+        <DAGVisualization />
 
         <section className="grid gap-4 md:grid-cols-3">
           {deploymentNodes.map((node) => {
