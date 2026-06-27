@@ -22,6 +22,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { ReleaseFlowGraph } from "@/components/release-flow-graph";
+import { ReleaseDagGraph } from "@/components/release-dag-graph";
 import { type ConsoleSection } from "@/lib/console-sections";
 import { type FlowEdge, type FlowNode, type Status } from "@/lib/graphflow";
 
@@ -598,15 +599,7 @@ export function Dashboard({ section }: DashboardProps) {
           </div>
         </section>
 
-        <ReleaseFlowGraph
-          blastRadius={overview.gate.blastRadius}
-          criticalPath={overview.gate.criticalPath.path}
-          edges={overview.graph.edges}
-          nodes={overview.graph.nodes}
-          onSelectNode={setSelectedNodeId}
-          selectedNodeId={selectedNodeId}
-          statuses={overview.run.statuses}
-        />
+        <ReleaseDagGraph />
 
         <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
           {renderAgentCard()}
@@ -713,15 +706,7 @@ export function Dashboard({ section }: DashboardProps) {
           </div>
         </section>
 
-        <ReleaseFlowGraph
-          blastRadius={overview.gate.blastRadius}
-          criticalPath={overview.gate.criticalPath.path}
-          edges={overview.graph.edges}
-          nodes={overview.graph.nodes}
-          onSelectNode={setSelectedNodeId}
-          selectedNodeId={selectedNodeId}
-          statuses={overview.run.statuses}
-        />
+        <ReleaseDagGraph />
 
         <section className="grid gap-4 md:grid-cols-3">
           {deploymentNodes.map((node) => {
